@@ -120,6 +120,9 @@ class DwarfAddressDecoder(object):
             self._build_function_search_tree()
             self._build_line_search_tree()
 
+    def get_elf(self):
+        return self.elffile
+
     def get_function_for_address(self, addr):
         try:
             return sorted(self.function_tree[addr])[0].data
