@@ -34,6 +34,8 @@ ARM_CortexM1 = 0xC21
 ARM_CortexM3 = 0xC23
 ARM_CortexM4 = 0xC24
 ARM_CortexM0p = 0xC60
+ARM_CortexM23 = 0xD20
+ARM_CortexM33 = 0xD21
 
 # User-friendly names for core types.
 CORE_TYPE_NAME = {
@@ -41,7 +43,9 @@ CORE_TYPE_NAME = {
                  ARM_CortexM1 : "Cortex-M1",
                  ARM_CortexM3 : "Cortex-M3",
                  ARM_CortexM4 : "Cortex-M4",
-                 ARM_CortexM0p : "Cortex-M0+"
+                 ARM_CortexM0p : "Cortex-M0+",
+                 ARM_CortexM23 : "Cortex-M23",
+                 ARM_CortexM33 : "Cortex-M33",
                }
 
 # Map from register name to DCRSR register index.
