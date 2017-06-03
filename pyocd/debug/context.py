@@ -49,7 +49,8 @@ class DebugContext(MemoryInterface):
             another DebugContext instance.
         """
         self._parent = parent
-        
+        self._super_frame = None
+       
         if isinstance(self._parent, CoreSightCoreComponent):
             self._core = parent
         else:
@@ -63,6 +64,13 @@ class DebugContext(MemoryInterface):
     def core(self):
         return self._core
 
+    def get_super_frame_context(self):
+        if self._super_frame is None:
+            # Import locally to work around import loop.
+            from . import call_frame
+            self._super_frame = call_frame.CallFrameContext(self)
+        return self._super_frame
+    
     def write_memory(self, addr, value, transfer_size=32):
         return self._parent.write_memory(addr, value, transfer_size)
 

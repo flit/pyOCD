@@ -15,7 +15,7 @@
 # limitations under the License.
 from __future__ import print_function
 from ...core.memory_map import (MemoryRange, MemoryMap)
-from .decoder import (ElfSymbolDecoder, DwarfAddressDecoder)
+from .decoder import (ElfSymbolDecoder, DwarfAddressDecoder, DwarfCfiDecoder)
 from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import SH_FLAGS
 import six
@@ -115,6 +115,7 @@ class ELFBinaryFile(object):
 
         self._symbol_decoder = None
         self._address_decoder = None
+        self._cfi_decoder = None
 
         self._extract_sections()
         self._compute_regions()
@@ -232,5 +233,10 @@ class ELFBinaryFile(object):
             self._address_decoder = DwarfAddressDecoder(self._elf)
         return self._address_decoder
 
+    @property
+    def cfi_decoder(self):
+        if self._cfi_decoder is None:
+            self._cfi_decoder = DwarfCfiDecoder(self._elf)
+        return self._cfi_decoder
 
 

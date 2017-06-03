@@ -53,6 +53,7 @@ from ..utility.cmdline import (convert_session_options, convert_frequency)
 from ..utility.hex import (format_hex_width, dump_hex_data)
 from ..utility.progress import print_progress
 from ..utility.compatibility import get_terminal_size
+from ..debug import call_frame
 
 # Make disasm optional.
 try:
@@ -368,6 +369,16 @@ COMMAND_INFO = {
             'help' : "Start or stop the gdbserver.",
             'extra_help' : "The action argument should be either 'start' or 'stop'. Use the 'gdbserver_port' and 'telnet_port' user options to control the ports the gdbserver uses.",
             },
+        'bt' : {
+            'aliases' : [],
+            'args' : "",
+            'help' : "Report the call stack.",
+            },
+        'syma' : {
+            'aliases' : [],
+            'args' : "ADDR",
+            'help' : "Show the symbol info for an address.",
+            },
         }
 
 INFO_HELP = {
@@ -670,6 +681,8 @@ class PyOCDCommander(object):
                 'gdbserver':self.handle_gdbserver,
                 'fill' :    self.handle_fill,
                 'find' :    self.handle_find,
+                'bt' :      self.handle_backtrace,
+                'syma' :    self.handle_syma,
             }
         self.info_list = {
                 'map' :                 self.handle_show_map,
@@ -889,7 +902,7 @@ class PyOCDCommander(object):
     def handle_reg(self, args):
         # If there are no args, print all register values.
         if len(args) < 1:
-            self.dump_registers()
+            self.dump_registers(self.target.get_target_context())
             return
 
         if len(args) == 2 and args[0].lower() == '-f':
@@ -1665,7 +1678,7 @@ class PyOCDCommander(object):
         if sym is not None:
             if sym.type == 'STT_FUNC':
                 name += "()"
-            print("{name}: {addr:#10x} {sz:#x}".format(name=name, addr=sym.address, sz=sym.size))
+            print("{name}: {addr:#010x} {sz:#x}".format(name=name, addr=sym.address, sz=sym.size))
         else:
             print("No symbol named '{}' was found".format(name))
 
@@ -1686,6 +1699,51 @@ class PyOCDCommander(object):
                 print("gdbserver is not running")
         else:
             print("Invalid action")
+
+    def handle_backtrace(self, args):
+        if self.elf is None:
+            print("No ELF available")
+            return
+        
+        frameNumber = 0
+        ctx = self.target.get_target_context()
+        while True:
+            pc = ctx.read_core_register('pc')
+            
+            symInfo = self.elf.symbol_decoder.get_symbol_for_address(pc)
+            if symInfo is None:
+                print("That's all, folks! (pc=0x%08x)" % pc)
+                break
+            
+            fnInfo = self.elf.address_decoder.get_function_for_address(pc)
+            if fnInfo is None:
+                print("#{frame} {addr:#10x} : {fn}".format(frame=frameNumber, addr=pc, fn=symInfo.name))
+            else:
+                lineInfo = self.elf.address_decoder.get_line_for_address(pc)
+                if lineInfo is not None:
+                    path = os.path.join(lineInfo.dirname, lineInfo.filename)
+                    print("#{frame} {addr:#10x} : {fn} : {path}:{line}".format(frame=frameNumber, addr=pc, fn=fnInfo.name, path=path, line=lineInfo.line))
+                else:
+                    print("#{frame} {addr:#10x} : {fn}".format(frame=frameNumber, addr=pc, fn=fnInfo.name))
+        
+            self.dump_registers(ctx)
+            
+            ctx = ctx.get_super_frame_context()
+            frameNumber += 1
+
+    def handle_syma(self, args):
+        if self.elf is None:
+            print("No ELF available")
+            return
+        if len(args) < 1:
+            print("Missing address.")
+            return
+        addr = self.convert_value(args[0])
+        info = self.elf.symbol_decoder.get_symbol_for_address(addr)
+        if info is None:
+            print("No symbol found for address 0x%08x" % addr)
+        else:
+            print("{name}: {value:#010x} (size={sz:#x})".format(name=info.name, value=info.address, sz=info.size))
 
     def handle_reinit(self, args):
         self.target.init()
@@ -2047,7 +2105,7 @@ Prefix line with ! to execute a shell command.""")
 
         return value
 
-    def dump_registers(self):
+    def dump_registers(self, ctx):
         # Registers organized into columns for display.
         regs = ['r0', 'r6', 'r12',
                 'r1', 'r7', 'sp',
@@ -2057,7 +2115,7 @@ Prefix line with ! to execute a shell command.""")
                 'r5', 'r11', 'primask']
 
         for i, reg in enumerate(regs):
-            regValue = self.target.read_core_register(reg)
+            regValue = ctx.read_core_register(reg)
             print("{:>8} {:#010x} ".format(reg + ':', regValue), end=' ')
             if i % 3 == 2:
                 print()
