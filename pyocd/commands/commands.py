@@ -115,10 +115,10 @@ class StatusCommand(CommandBase):
             self.context.write("Target is locked")
 
 class RegisterCommandBase(CommandBase):
-    def dump_register_group(self, group_name):
+    def dump_register_group(self, ctx, group_name):
         regs = natsort(self.context.selected_core.core_registers.iter_matching(
                 lambda r: r.group == group_name), key=lambda r: r.name)
-        reg_values = self.context.selected_core.read_core_registers_raw(r.name for r in regs)
+        reg_values = ctx.read_core_registers_raw(r.name for r in regs)
         
         col_printer = ColumnFormatter()
         for info, value in zip(regs, reg_values):
@@ -127,7 +127,7 @@ class RegisterCommandBase(CommandBase):
         
         col_printer.write()
 
-    def dump_registers(self, show_all=False, show_group=None):
+    def dump_registers(self, ctx, show_all=False, show_group=None):
         if not self.context.selected_core.is_halted():
             self.context.write("Core is not halted; cannot read core registers")
             return
@@ -215,7 +215,7 @@ class RegCommand(RegisterCommandBase):
 
     def execute(self):
         if self.show_all:
-            self.dump_registers(show_all=True)
+            self.dump_registers(self.context.selected_core.get_target_context(), show_all=True)
             return
         
         # Check register names first.
@@ -234,7 +234,7 @@ class RegCommand(RegisterCommandBase):
         matcher = UniquePrefixMatcher(self.context.selected_core.core_registers.groups)
         group_matches = matcher.find_all(self.reg)
         if len(group_matches) == 1:
-            self.dump_registers(show_group=group_matches[0])
+            self.dump_registers(self.context.selected_core.get_target_context(), show_group=group_matches[0])
             return
         
         # And finally check for peripherals.
@@ -992,6 +992,70 @@ class HaltCommand(CommandBase):
         else:
             self.context.write("Successfully halted device")
 
+class BacktraceCommand(CommandBase):
+    INFO = {
+            'names': ['bt'],
+            'group': 'standard',
+            'category': 'core',
+            'nargs': 0,
+            'usage': "",
+            'help': "Report the call stack.",
+            }
+    
+    def execute(self):
+        if self.context.elf is None:
+            raise exceptions.CommandError("No ELF available")
+        
+        frame_number = 0
+        ctx = self.context.selected_core.get_target_context()
+        while True:
+            pc = ctx.read_core_register('pc')
+            
+            sym_info = self.elf.symbol_decoder.get_symbol_for_address(pc)
+            if sym_info is None:
+                self.context.write(f"That's all, folks! (pc={pc:#010x})")
+                break
+            
+            fn_info = self.elf.address_decoder.get_function_for_address(pc)
+            if fn_info is None:
+                self.context.write(f"#{frame_number} {pc:#010x} : {sym_info.name}")
+            else:
+                line_info = self.elf.address_decoder.get_line_for_address(pc)
+                if line_info is not None:
+                    path = os.path.join(line_info.dirname, line_info.filename)
+                    self.context.write(f"#{frame_number} {pc:#010x} : {fn_info.name} : {path}:{line_info.line}")
+                else:
+                    self.context.write(f"#{frame_number} {pc:#010x} : {fn_info.name}")
+        
+#             self.dump_registers(ctx)
+            
+            ctx = ctx.get_super_frame_context()
+            frame_number += 1
+
+class SymbolAddressCommand(CommandBase):
+    INFO = {
+            'names': ['syma'],
+            'group': 'standard',
+            'category': 'core',
+            'nargs': 1,
+            'usage': "ADDR",
+            'help': "Show the symbol info for an address.",
+            }
+
+    def parse(self, args):
+        if self.context.elf is None:
+            raise exceptions.CommandError("No ELF available")
+        if len(args) < 1:
+            raise exceptions.CommandError("Missing address.")
+        self.addr = self._convert_value(args[0])
+
+    def execute(self):
+        info = self.context.elf.symbol_decoder.get_symbol_for_address(addr)
+        if info is None:
+            self.context.write(f"No symbol found for address {addr:#010x}")
+        else:
+            self.context.write(f"{info.name}: {info.address:#010x} (size={info.size:#x})")
+
 class BreakpointCommand(CommandBase):
     INFO = {
             'names': ['break'],
@@ -1357,7 +1421,7 @@ class SymbolCommand(CommandBase):
         if sym is not None:
             if sym.type == 'STT_FUNC':
                 self.name += "()"
-            self.context.writef("{name}: {addr:#10x} {sz:#x}", name=self.name, addr=sym.address, sz=sym.size)
+            self.context.writef("{name}: {addr:#010x} {sz:#x}", name=self.name, addr=sym.address, sz=sym.size)
         else:
             self.context.writef("No symbol named '{}' was found", self.name)
 

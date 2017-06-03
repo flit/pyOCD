@@ -18,6 +18,7 @@
 import os
 from elftools.elf.elffile import ELFFile
 from elftools.dwarf.constants import DW_LNE_set_address
+from elftools.dwarf.callframe import (CIE, FDE)
 from intervaltree import IntervalTree
 from collections import namedtuple
 from itertools import islice
@@ -38,6 +39,7 @@ class ElfSymbolDecoder(object):
         self.symcount = self.symtab.num_symbols()
         self.symbol_dict = {}
         self.symbol_tree = None
+        self.symbol_dict = {}
 
         # Build indices.
         self._build_symbol_search_tree()
@@ -83,6 +85,7 @@ class ElfSymbolDecoder(object):
             
             # Add to symbol tree.
             self.symbol_tree.addi(sym_value, sym_value+sym_size, syminfo)
+            self.symbol_dict[symbol.name] = syminfo
 
     def _process_arm_type_symbols(self):
         pass
@@ -234,5 +237,44 @@ class DwarfAddressDecoder(object):
                 high_pc = 0xffffffff
             filename = os.path.basename(prog._parent.attributes['DW_AT_name'].value.replace('\\', '/'))
             LOG.debug("%s%s%08x %08x %s", name, (' ' * (50-len(name))), low_pc, high_pc, filename)
+
+class DwarfCfiDecoder(object):
+    def __init__(self, elf):
+        assert isinstance(elf, ELFFile)
+        self._elffile = elf
+
+        if not self._elffile.has_dwarf_info():
+            raise RuntimeError("No DWARF debug info available")
+
+        self._dwarfinfo = self._elffile.get_dwarf_info()
+
+        if not self._dwarfinfo.has_CFI():
+            raise RuntimeError("No DWARF call frame info available")
+
+        self._cfi = self._dwarfinfo.CFI_entries()
+
+        self._build_fde_tree()
+
+    def _build_fde_tree(self):
+        self._fde_tree = IntervalTree()
+        for cfi in self._cfi:
+            # Skip CIEs.
+            if isinstance(cfi, CIE):
+                continue
+
+            # Skip FDEs with an initial PC of 0 since that represents an excluded function.
+            if isinstance(cfi, FDE) and cfi['initial_location'] == 0:
+                continue
+
+            lowPC = cfi['initial_location']
+            highPC = lowPC + cfi['address_range']
+
+            self._fde_tree.addi(lowPC, highPC, cfi)
+
+    def get_fde_for_address(self, addr):
+        try:
+            return sorted(self._fde_tree[addr])[0].data
+        except IndexError:
+            return None
 
 
