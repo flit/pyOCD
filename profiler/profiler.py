@@ -40,7 +40,7 @@ except ImportError:
 
 sys.path.append('..')
 import pyOCD
-from decoder import DwarfAddressDecoder
+from pyOCD.debug.elf.decoder import DwarfAddressDecoder
 
 import elapsedtimer
 # elapsedtimer.enable = False
