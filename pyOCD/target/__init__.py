@@ -64,6 +64,7 @@ from . import target_lpc4088qsb
 from . import target_lpc4088dm
 from . import target_RTL8195AM
 from . import target_CC3220SF
+from . import target_musca_a1
 
 TARGET = {
           'cortex_m': CoreSightTarget,
@@ -115,6 +116,7 @@ TARGET = {
           'lpc4088dm': target_lpc4088dm.LPC4088dm,
           'rtl8195am': target_RTL8195AM.RTL8195AM,
           'cc3220sf': target_CC3220SF.CC3220SF,
+          'musca_a1' : target_musca_a1.MuscaA1,
          }
 
 FLASH = {
@@ -167,4 +169,5 @@ FLASH = {
          'lpc4088dm': target_lpc4088dm.Flash_lpc4088qsb_dm,
          'rtl8195am': target_RTL8195AM.Flash_rtl8195am,
          'cc3220sf': target_CC3220SF.Flash_cc3220sf,
+         'musca_a1' : target_musca_a1.Flash_musca_a1,
          }
