@@ -123,6 +123,56 @@ class CallSequence(object):
         # Insert iterable.
         self._calls.update(args)
 
+    ## @brief Insert a task or tasks before a named task.
+    #
+    # @param beforeTaskName The name of an existing task. The new tasks will be inserted
+    #   prior to this task.
+    #
+    # After the task name parameter, any number of task description 2-tuples may be
+    # passed.
+    #
+    # @exception KeyError Raised if the named task does not exist in the sequence.
+    def insert_before(self, beforeTaskName, *args):
+        self._validate_tasks(args)
+        
+        if not self.has_task(beforeTaskName):
+            raise KeyError(beforeTaskName)
+
+        seq = self._calls.items()
+        for i, v in enumerate(seq):
+            if v[0] == beforeTaskName:
+                for c in args:
+                    # List insert() inserts before the given index.
+                    seq.insert(i, c)
+                    i += 1
+                break
+        self._calls = OrderedDict(seq)
+
+    ## @brief Insert a task or tasks after a named task.
+    #
+    # @param afterTaskName The name of an existing task. The new tasks will be inserted
+    #   after this task.
+    #
+    # After the task name parameter, any number of task description 2-tuples may be
+    # passed.
+    #
+    # @exception KeyError Raised if the named task does not exist in the sequence.
+    def insert_after(self, afterTaskName, *args):
+        self._validate_tasks(args)
+        
+        if not self.has_task(afterTaskName):
+            raise KeyError(afterTaskName)
+
+        seq = self._calls.items()
+        for i, v in enumerate(seq):
+            if v[0] == afterTaskName:
+                for c in args:
+                    # List insert() inserts before the given index.
+                    seq.insert(i + 1, c)
+                    i += 1
+                break
+        self._calls = OrderedDict(seq)
+
     ## @brief Execute each task in order.
     #
     # A task may return a CallSequence, in which case the new sequence is immediately
