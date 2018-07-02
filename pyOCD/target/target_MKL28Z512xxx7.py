@@ -181,7 +181,13 @@ class KL28x(Kinetis):
         seq.replace_task('find_aps', self.create_kl28_aps)
 
         # Before creating cores, determine which memory map should be used.
-        seq.insert_before('create_cores', self.detect_dual_core)
+        seq.insert_before('create_cores',
+            ('detect_dual_core', self.detect_dual_core)
+            )
+
+        seq.insert_after('create_cores',
+            ('disable_rom_remap', self.disable_rom_remap)
+            )
 
         return seq
 
@@ -199,6 +205,7 @@ class KL28x(Kinetis):
             logging.info("KL28 is dual core")
             self.memory_map = self.dualMap
 
+    def disable_rom_remap(self):
         # Disable ROM vector table remapping.
         self.aps[0].write32(RCM_MR, RCM_MR_BOOTROM_MASK)
 
