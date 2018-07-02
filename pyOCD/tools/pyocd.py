@@ -255,9 +255,9 @@ COMMAND_INFO = {
             },
         'makeap' : {
             'aliases' : [],
-            'args' : "APSEL [mem]",
-            'help' : "Creates a new AP object for the given APSEL and optional type.",
-            'extra_help' : "Either a generic AP or a MEM-AP will be created depending on whether 'mem' is passed for the second, optional parameter.",
+            'args' : "APSEL",
+            'help' : "Creates a new AP object for the given APSEL.",
+            'extra_help' : "The type of AP, MEM-AP or generic, is autodetected.",
             },
         }
 
@@ -1017,6 +1017,7 @@ class PyOCDTool(object):
                     'link' : self.link,
                     'flash' : self.flash,
                     'dp' : self.target.dp,
+                    'aps' : self.target.dp.aps,
                 }
             result = eval(args, globals(), env)
             if result is not None:
@@ -1093,16 +1094,15 @@ class PyOCDTool(object):
             print("Missing APSEL")
             return
         apsel = self.convert_value(args[0])
-        makeMemAp = (len(args) == 2 and args[1].lower() == 'mem')
         if apsel in self.target.aps:
             print("AP with APSEL=%d already exists" % apsel)
             return
-        if makeMemAp:
-            ap = coresight.ap.MEM_AP(self.target.dp, apsel)
-        else:
-            ap = coresight.ap.AccessPort(self.target.dp, apsel)
-        ap.init(bus_accessible=False)
-        self.target.aps[apsel] = ap
+        exists = pyOCD.coresight.ap.AccessPort.probe(self.target.dp, apsel)
+        if not exists:
+            print("Error: no AP with APSEL={}} exists".format(apsel))
+            return
+        ap = pyOCD.coresight.ap.AccessPort.create(self.target.dp, apsel)
+        self.target.dp.aps[apsel] = ap
 
     def handle_reinit(self, args):
         self.target.init()
