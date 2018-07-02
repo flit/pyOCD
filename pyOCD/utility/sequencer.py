@@ -77,6 +77,7 @@ class CallSequence(object):
     # @exception KeyError Raised if no task with the specified name exists.
     def remove_task(self, name):
         del self._calls[name]
+        return self
     
     ## @brief Returns a boolean indicating presence of the named task in the sequence.
     def has_task(self, name):
@@ -96,6 +97,7 @@ class CallSequence(object):
             # OrderedDict preserves the order when changing the value of a key
             # that is already in the dict.
             self._calls[name] = replacement
+        return self
     
     ## @brief Wrap an existing task with a new callable.
     #
@@ -112,6 +114,7 @@ class CallSequence(object):
         # OrderedDict preserves the order when changing the value of a key
         # that is already in the dict.
         self._calls[name] = lambda : wrapper(orig())
+        return self
     
     ## @brief Append a new task or tasks to the sequence.
     #
@@ -122,6 +125,7 @@ class CallSequence(object):
 
         # Insert iterable.
         self._calls.update(args)
+        return self
 
     ## @brief Insert a task or tasks before a named task.
     #
@@ -147,6 +151,7 @@ class CallSequence(object):
                     i += 1
                 break
         self._calls = OrderedDict(seq)
+        return self
 
     ## @brief Insert a task or tasks after a named task.
     #
@@ -172,18 +177,20 @@ class CallSequence(object):
                     i += 1
                 break
         self._calls = OrderedDict(seq)
+        return self
 
     ## @brief Execute each task in order.
     #
     # A task may return a CallSequence, in which case the new sequence is immediately
     # executed.
     def invoke(self):
-        for call in self._calls.values():
+        for name, call in self._calls.iteritems():
+            log.debug("Running task %s", name)
             resultSequence = call()
             
             # Invoke returned call sequence.
             if resultSequence is not None and isinstance(resultSequence, CallSequence):
-                log.debug("Invoking returned call sequence: %s", resultSequence)
+#                 log.debug("Invoking returned call sequence: %s", resultSequence)
                 resultSequence.invoke()
     
     ## @brief Another way to execute the tasks.
@@ -202,3 +209,6 @@ class CallSequence(object):
             s += "\n%s: %s" % (name, task)
         s += ">"
         return s
+    
+    def __repr__(self):
+        return self.__str__()
