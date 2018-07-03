@@ -619,9 +619,15 @@ class PyOCDTool(object):
             if not self.cmd:
                 if not self.args.no_init:
                     try:
+                        # If the target is locked, we can't read the CPU state.
+                        if self.target.isLocked():
+                            status = "locked"
+                        else:
+                            status = CORE_STATUS_DESC[self.target.getState()]
+
                         # Say what we're connected to.
                         print("Connected to %s [%s]: %s" % (self.target.part_number,
-                            CORE_STATUS_DESC[self.target.getState()], self.board.getUniqueID()))
+                            status, self.board.getUniqueID()))
                     except DAPAccess.TransferFaultError:
                         pass
 
