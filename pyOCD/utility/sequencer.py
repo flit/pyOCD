@@ -203,12 +203,9 @@ class CallSequence(object):
     def __iter__(self):
         return self._calls.iteritems()
     
-    def __str__(self):
+    def __repr__(self):
         s = "<%s@%x: " % (self.__class__.__name__, id(self))
         for name, task in self._calls.iteritems():
             s += "\n%s: %s" % (name, task)
         s += ">"
         return s
-    
-    def __repr__(self):
-        return self.__str__()
