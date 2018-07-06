@@ -52,10 +52,10 @@ CIDR_COMPONENT_CLASS_MASK = 0x0000f000
 CIDR_COMPONENT_CLASS_SHIFT = 12
 
 # Component classes.
-CIDR_ROM_TABLE_CLASS = 0x1
-CIDR_CORESIGHT_CLASS = 0x9
-CIDR_GENERIC_IP_CLASS = 0xe
-CIDR_SYSTEM_CLASS = 0xf # CoreLink, PrimeCell, or other system component with no standard register layout.
+ROM_TABLE_CLASS = 0x1
+CORESIGHT_CLASS = 0x9
+GENERIC_CLASS = 0xe
+SYSTEM_CLASS = 0xf # CoreLink, PrimeCell, or other system component with no standard register layout.
 
 # Peripheral ID register fields.
 PIDR_PART_MASK = 0x00000fff
@@ -114,43 +114,50 @@ DEVARCH_ARCHID_MASK = 0xffff
 #  0x13 = CPU trace source (ETM, MTB?)
 #  0x43 = ITM
 #  0x14 = ECT/CTI/CTM
+#  0x31 = MTB
 #  0x34 = Granular Power Requestor
 
 ## Pairs a component name with a factory method.
-ComponentInfo = namedtuple('ComponentInfo', 'name factory')
+CmpInfo = namedtuple('ComponentInfo', 'name factory')
 
-## Map from (designer, class, part, archid) to component name and class.
+## Map from (designer, class, part, devtype, archid) to component name and class.
 COMPONENT_MAP = {
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x906, 0)      : ComponentInfo('CTI',       None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x907, 0)      : ComponentInfo('ETB',       None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x908, 0)      : ComponentInfo('CSTF',      None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x912, 0)      : ComponentInfo('TPIU',      None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x923, 0)      : ComponentInfo('TPIU-M3',   None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x924, 0)      : ComponentInfo('ETM-M3',    None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x925, 0)      : ComponentInfo('ETM-M4',    None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x932, 0x0a31) : ComponentInfo('MTB-M0+',   None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x975, 0)      : ComponentInfo('ETM-M7',    None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a1, 0)      : ComponentInfo('TPIU-M4',   None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a4, 0x0a34) : ComponentInfo('GPR',       None            ), # Granular Power Requestor
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a6, 0x1a14) : ComponentInfo('CTI',       None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0x9a9, 0)      : ComponentInfo('TPIU-M7',   None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a01) : ComponentInfo('ITM',       None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a02) : ComponentInfo('DWT',       DWT.factory     ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a03) : ComponentInfo('BPU',       FPB.factory     ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x1a14) : ComponentInfo('CTI',       None            ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x2a04) : ComponentInfo('SCS-M33',   CortexM.factory ),
-    (ARM_ID, CIDR_CORESIGHT_CLASS,  0xd21, 0x4a13) : ComponentInfo('ETM',       None            ),
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x000, 0)      : ComponentInfo('SCS-M3',    CortexM.factory ),
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x001, 0)      : ComponentInfo('ITM',       None            ),
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x002, 0)      : ComponentInfo('DWT',       DWT.factory     ),
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x003, 0)      : ComponentInfo('FPB',       FPB.factory     ),
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x008, 0)      : ComponentInfo('SCS-M0+',   CortexM.factory ),
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00a, 0)      : ComponentInfo('DWT-M0+',   DWT.factory     ),
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00b, 0)      : ComponentInfo('BPU',       FPB.factory     ),
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00c, 0)      : ComponentInfo('SCS-M4',    CortexM.factory ),
-    (ARM_ID, CIDR_GENERIC_IP_CLASS, 0x00e, 0)      : ComponentInfo('FPB',       FPB.factory     ),
-    (ARM_ID, CIDR_SYSTEM_CLASS,     0x101, 0)      : ComponentInfo('TSGEN',     None            ), # Timestamp Generator
-    (FSL_ID, CIDR_CORESIGHT_CLASS,  0x000, 0)      : ComponentInfo('MTBDWT',    None            ),
+  # Designer|Component Class |Part  |Type |Archid 
+    (ARM_ID, CORESIGHT_CLASS, 0x906, 0x14, 0)      : CmpInfo('CTI',       None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x907, 0x21, 0)      : CmpInfo('ETB',       None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x908, 0x12, 0)      : CmpInfo('CSTF',      None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x912, 0x11, 0)      : CmpInfo('TPIU',      None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x923, 0x11, 0)      : CmpInfo('TPIU-M3',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x924, 0x13, 0)      : CmpInfo('ETM-M3',    None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x925, 0x13, 0)      : CmpInfo('ETM-M4',    None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x932, 0x31, 0x0a31) : CmpInfo('MTB-M0+',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x975, 0x13, 0)      : CmpInfo('ETM-M7',    None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x9a1, 0x11, 0)      : CmpInfo('TPIU-M4',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x9a4, 0x34, 0x0a34) : CmpInfo('GPR',       None            ), # Granular Power Requestor
+    (ARM_ID, CORESIGHT_CLASS, 0x9a6, 0x14, 0x1a14) : CmpInfo('CTI',       None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0x9a9, 0x11, 0)      : CmpInfo('TPIU-M7',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x11, 0)      : CmpInfo('TPIU-M23',  None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x13, 0)      : CmpInfo('ETM-M23',   None            ),
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x1a02) : CmpInfo('DWT',       DWT.factory     ), # M23
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M23
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x2a04) : CmpInfo('SCS-M23',   CortexM.factory ), # M23
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a01) : CmpInfo('ITM',       None            ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a02) : CmpInfo('DWT',       DWT.factory     ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a14) : CmpInfo('CTI',       None            ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x2a04) : CmpInfo('SCS-M33',   CortexM.factory ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x4a13) : CmpInfo('ETM',       None            ), # M33
+    (ARM_ID, GENERIC_CLASS,   0x000, 0x00, 0)      : CmpInfo('SCS-M3',    CortexM.factory ),
+    (ARM_ID, GENERIC_CLASS,   0x001, 0x00, 0)      : CmpInfo('ITM',       None            ),
+    (ARM_ID, GENERIC_CLASS,   0x002, 0x00, 0)      : CmpInfo('DWT',       DWT.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x003, 0x00, 0)      : CmpInfo('FPB',       FPB.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x008, 0x00, 0)      : CmpInfo('SCS-M0+',   CortexM.factory ),
+    (ARM_ID, GENERIC_CLASS,   0x00a, 0x00, 0)      : CmpInfo('DWT-M0+',   DWT.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x00b, 0x00, 0)      : CmpInfo('BPU',       FPB.factory     ),
+    (ARM_ID, GENERIC_CLASS,   0x00c, 0x00, 0)      : CmpInfo('SCS-M4',    CortexM.factory ),
+    (ARM_ID, GENERIC_CLASS,   0x00e, 0x00, 0)      : CmpInfo('FPB',       FPB.factory     ),
+    (ARM_ID, SYSTEM_CLASS,    0x101, 0x00, 0)      : CmpInfo('TSGEN',     None            ), # Timestamp Generator
+    (FSL_ID, CORESIGHT_CLASS, 0x000, 0x04, 0)      : CmpInfo('MTBDWT',    None            ),
     }
 
 ## @brief Reads and parses CoreSight architectural component ID registers.
@@ -191,7 +198,7 @@ class CoreSightComponentID(object):
 
         # Extract class and determine if this is a ROM table.
         component_class = (self.cidr & CIDR_COMPONENT_CLASS_MASK) >> CIDR_COMPONENT_CLASS_SHIFT
-        is_rom_table = (component_class == CIDR_ROM_TABLE_CLASS)
+        is_rom_table = (component_class == ROM_TABLE_CLASS)
         
         # Extract JEP106 designer ID.
         self.designer = ((self.pidr & PIDR_DESIGNER_MASK) >> PIDR_DESIGNER_SHIFT) \
@@ -199,7 +206,7 @@ class CoreSightComponentID(object):
         self.part = self.pidr & PIDR_PART_MASK
         
         # For CoreSight-class components, extract additional fields.
-        if component_class == CIDR_CORESIGHT_CLASS:
+        if component_class == CORESIGHT_CLASS:
              self.devarch = regs[DEVARCH_OFFSET]
              self.devid = regs[1:4]
              self.devtype = regs[DEVTYPE_OFFSET]
@@ -212,7 +219,7 @@ class CoreSightComponentID(object):
             self.name = 'ROM'
             self.factory = ROMTable
         else:
-            key = (self.designer, component_class, self.part, self.archid)
+            key = (self.designer, component_class, self.part, self.devtype, self.archid)
             info = COMPONENT_MAP.get(key, None)
             if info is not None:
                 self.name = info.name
@@ -234,7 +241,7 @@ class CoreSightComponentID(object):
     def __repr__(self):
         if not self.valid:
             return "<%08x:%s cidr=%x, pidr=%x, component invalid>" % (self.address, self.name, self.cidr, self.pidr)
-        if self.component_class == CIDR_CORESIGHT_CLASS:
+        if self.component_class == CORESIGHT_CLASS:
             return "<%08x:%s class=%d designer=%03x part=%03x devtype=%02x archid=%04x devid=%x:%x:%x>" % (
                 self.address, self.name, self.component_class, self.designer, self.part,
                 self.devtype, self.archid, self.devid[0], self.devid[1], self.devid[2])
