@@ -110,7 +110,7 @@ class K22FA12(Kinetis):
 
         # Modify the memory map for FlexNVM devices.
         seq.insert_before('create_cores',
-            ('fixup_memory_map', self.detect_dual_core)
+            ('fixup_memory_map', self.fixup_memory_map)
             )
 
         return seq
