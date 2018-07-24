@@ -20,7 +20,7 @@ from ..core.coresight_target import (SVDFile, CoreSightTarget)
 from ..core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 
 flash_algo = {
-    'load_address' : 0x10000000,
+    'load_address' : 0x20000000,
     'instructions': [
     0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,
     0x41f0e92d, 0x460e4605, 0x24004617, 0xf974f000, 0xf9c1f000, 0xb1144604, 0xe8bd2001, 0x200081f0,
@@ -101,7 +101,7 @@ class Flash_musca_a1(Flash):
 class MuscaA1(CoreSightTarget):
 
     memoryMap = MemoryMap(
-        FlashRegion(name='qspi',     start=0x00200000, length=0x40000, blocksize=0x100, isBootMemory=True),
+        FlashRegion(name='qspi',     start=0x10200000, length=0x40000, blocksize=0x100, isBootMemory=True),
         RamRegion(  name='code_ram', start=0x00000000, length=0x200000),
         RamRegion(  name='sys_ram',  start=0x20000000, length=0x20000),
         )
