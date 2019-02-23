@@ -102,6 +102,10 @@ class Timeout(object):
             sleep(self._sleeptime)
         self._is_first_check = False
         return not self._timed_out
+    
+    def reset(self):
+        self._timed_out = False
+        self._start = time()
 
     @property
     def did_time_out(self):
