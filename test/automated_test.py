@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +25,9 @@ import argparse
 from xml.etree import ElementTree
 import multiprocessing as mp
 import io
+import threading
+import queue
+import traceback
 
 from pyocd.core.session import Session
 from pyocd.core.helpers import ConnectHelper
@@ -301,6 +305,7 @@ def main():
     parser = argparse.ArgumentParser(description='pyOCD automated testing')
     parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
     parser.add_argument('-q', '--quiet', action="store_true", help='Hide test progress for 1 job')
+    parser.add_argument('-t', '--use-threads', action="store_true", help='Use a thread pool instead of process pool for multiple jobs')
     parser.add_argument('-j', '--jobs', action="store", default=1, type=int, metavar="JOBS",
         help='Set number of concurrent board tests (default is 1)')
     parser.add_argument('-b', '--board', action="append", metavar="ID", help="Limit testing to boards with specified unique IDs. Multiple boards can be listed.")
@@ -320,14 +325,15 @@ def main():
             print(test.name)
         return
     
-    # Disable multiple jobs on macOS prior to Python 3.4. By default, multiprocessing uses
+    # Force threads for multiple jobs on macOS prior to Python 3.4. By default, multiprocessing uses
     # fork() on Unix, which doesn't work on the Mac because CoreFoundation requires exec()
     # to be used in order to init correctly (CoreFoundation is used in hidapi). Only on Python
     # version 3.4+ is the multiprocessing.set_start_method() API available that lets us
     # switch to the 'spawn' method, i.e. exec().
-    if args.jobs > 1 and sys.platform.startswith('darwin') and sys.version_info[0:2] < (3, 4):
-        print("WARNING: Cannot support multiple jobs on macOS prior to Python 3.4. Forcing 1 job.")
-        args.jobs = 1
+    if args.jobs > 1 and sys.platform.startswith('darwin') and sys.version_info[0:2] < (3, 4) and not args.use_threads:
+        print("WARNING: Cannot support multiple processes on macOS prior to Python 3.4. Forcing use of threads.")
+        args.use_threads = True
+#         args.jobs = 1
 
     ensure_output_dir()
     
@@ -360,6 +366,46 @@ def main():
     if args.jobs == 1:
         for n, board_id in enumerate(board_id_list):
             result_list += test_board(board_id, n, level, logToConsole, commonLogFile)
+    elif args.use_threads:
+        # Create a thread pool to run tests.
+        q = queue.Queue()
+        result_lock = threading.RLock()
+        thread_pool = []
+        for i in range(args.jobs):
+            def worker(i):
+                print("Test thread #%d running" % i)
+                while True:
+                    item = q.get()
+                    print("Test thread #%d got item: %r" % (i, item))
+                    if item is None:
+                        break
+                    try:
+                        results = test_board(*item)
+                    except Exception as e:
+                        traceback.print_exc()
+                    print("Test thread #%d got %d results" % (i, len(results)))
+                    with result_lock:
+                        result_list.extend(results)
+                    print("Test thread #%d done with item" % i)
+                    q.task_done()
+            print("Creating thread #%d" % i)
+            t = threading.Thread(target=worker, args=(i,), daemon=True)
+            t.start()
+            thread_pool.append(t)
+
+        # Enqueue boards to test.
+        for item in [(board_id, n, level, logToConsole, commonLogFile)
+                             for n, board_id in enumerate(board_id_list)]:
+            q.put(item)
+
+        # block until all tasks are done
+        q.join()
+
+        # stop workers
+        for i in range(args.jobs):
+            q.put(None)
+        for t in thread_pool:
+            t.join()
     else:
         # Create a pool of processes to run tests.
         try:
