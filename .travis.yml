@@ -1,15 +1,63 @@
-language: python
-python:
-  - "2.7"
-  - "3.6"
-  - "3.7"
-  - "3.8"
-# first update setuptools and pip
-before_install:
-  - pip install -U setuptools pip
-# command to install dependencies
-install:
-  - pip install -U --upgrade-strategy=eager -r dev-requirements.txt
-# command to run tests
-script:
-  - pytest --cache-clear
+# language: python
+# python:
+#   - "2.7"
+#   - "3.6"
+#   - "3.7"
+#   - "3.8"
+# # first update setuptools and pip
+# before_install:
+#   - pip install -U setuptools pip
+# # command to install dependencies
+# install:
+#   - pip install -U --upgrade-strategy=eager -r dev-requirements.txt
+# # command to run tests
+# script:
+#   - pytest --cache-clear
+
+stages:
+- test
+- build
+
+jobs:
+  include:
+    - stage: test
+      dist: xenial
+      language: python
+      python: "2.7"
+      install: pip install -r dev-requirements.txt
+      script: pytest
+    - stage: test
+      dist: xenial
+      language: python
+      python: "3.7"
+      install: pip install -r dev-requirements.txt
+      script: pytest
+    - stage: build
+      os: linux
+      services:
+        - docker
+      env:
+        - DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64
+      script: docker run --rm -v `pwd`:/io $DOCKER_IMAGE /io/scripts/build_linux.sh $TRAVIS_OS_NAME
+    - stage: build
+      os: osx
+      osx_image: xcode10.2
+      script: scripts/build_osx.sh $TRAVIS_OS_NAME
+    - stage: build
+      os: windows
+      script: scripts/build_windows.sh $TRAVIS_OS_NAME
+
+deploy:
+  - provider: s3
+    access_key_id: AKIAJRSWHGVBJUV5HFZA
+    skip_cleanup: true
+    secret_access_key:
+      secure: "jlFq4zLhObVFlV5vPVipPyYTORBeodXCx+Mscs3FHI7gtlwNN9TRAifOVoLChSb3rO35rFnVFluZqRCrC0hyV+6kgDURqGAjgP3KjDWPlKViH9oZ5heWktdHEHuNReDiNYESx/2vlIE78fjCm+p+Y5MVkm6TH4NyS5igXt/x9ic="
+    bucket: mbed-os
+    local_dir: dist
+    upload-dir: builds/pyocd
+    acl: public_read
+    on:
+      repo: mbedmicro/pyOCD
+#       tags: true
+      condition: "$TRAVIS_BUILD_STAGE_NAME" = Build
