@@ -24,6 +24,8 @@ from collections import namedtuple
 from itertools import islice
 import logging
 
+from ...core import exceptions
+
 LOG = logging.getLogger(__name__)
 
 FunctionInfo = namedtuple('FunctionInfo', 'name subprogram low_pc high_pc')
@@ -107,22 +109,19 @@ class ElfSymbolDecoder(object):
 
 
 class DwarfAddressDecoder(object):
-    def __init__(self, elf):
+    def __init__(self, elf, dwarfinfo):
         assert isinstance(elf, ELFFile)
         self.elffile = elf
-        self.dwarfinfo = None
+        self.dwarfinfo = dwarfinfo
 
         self.subprograms = []
         self.function_tree = IntervalTree()
         self.line_tree = IntervalTree()
 
-        if self.elffile.has_dwarf_info():
-            self.dwarfinfo = self.elffile.get_dwarf_info()
-
-            # Build indices.
-            self._get_subprograms()
-            self._build_function_search_tree()
-            self._build_line_search_tree()
+        # Build indices.
+        self._get_subprograms()
+        self._build_function_search_tree()
+        self._build_line_search_tree()
 
     def get_function_for_address(self, addr):
         try:
@@ -239,17 +238,13 @@ class DwarfAddressDecoder(object):
             LOG.debug("%s%s%08x %08x %s", name, (' ' * (50-len(name))), low_pc, high_pc, filename)
 
 class DwarfCfiDecoder(object):
-    def __init__(self, elf):
+    def __init__(self, elf, dwarfinfo):
         assert isinstance(elf, ELFFile)
         self._elffile = elf
-
-        if not self._elffile.has_dwarf_info():
-            raise RuntimeError("No DWARF debug info available")
-
-        self._dwarfinfo = self._elffile.get_dwarf_info()
+        self._dwarfinfo = dwarfinfo
 
         if not self._dwarfinfo.has_CFI():
-            raise RuntimeError("No DWARF call frame info available")
+            raise exceptions.MissingDebugInfoError("No DWARF call frame info available")
 
         self._cfi = self._dwarfinfo.CFI_entries()
 

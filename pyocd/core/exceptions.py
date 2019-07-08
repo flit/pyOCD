@@ -156,5 +156,12 @@ class FlashProgramFailure(FlashFailure):
 
 class CommandError(Error):
     """! @brief Raised when a command encounters an error."""
+
+class DebugInfoError(Error):
+    """! @brief Error related to debug data (i.e., DWARF). """
+    pass
+
+class MissingDebugInfoError(DebugInfoError):
+    """! @brief No debug data is available. """
     pass
 
