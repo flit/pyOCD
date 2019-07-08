@@ -25,6 +25,7 @@ from .decoder import (
     DwarfAddressDecoder,
     DwarfCfiDecoder,
 )
+from .die_decoder import DwarfDieDecoder
 
 class ELFSection(MemoryRange):
     """! @brief Memory range for a section of an ELF file.
@@ -133,6 +134,7 @@ class ELFBinaryFile(object):
         self._symbol_decoder = None
         self._address_decoder = None
         self._cfi_decoder = None
+        self._die_decoder = None
 
         self._extract_sections()
         self._compute_regions()
@@ -269,5 +271,11 @@ class ELFBinaryFile(object):
         if self._cfi_decoder is None:
             self._cfi_decoder = DwarfCfiDecoder(self._elf, self.dwarf_info)
         return self._cfi_decoder
+    
+    @property
+    def die_decoder(self):
+        if self._die_decoder is None:
+            self._die_decoder = DwarfDieDecoder(self._elf, self.dwarf_info)
+        return self._die_decoder
 
 
