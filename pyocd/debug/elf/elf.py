@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017 Arm Limited
+# Copyright (c) 2017-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,11 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import print_function
-from ...core.memory_map import (MemoryRange, MemoryMap)
-from .decoder import (ElfSymbolDecoder, DwarfAddressDecoder, DwarfCfiDecoder)
 from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import SH_FLAGS
 import six
+
+from ...core import exceptions
+from ...core.memory_map import (MemoryRange, MemoryMap)
+from .decoder import (ElfSymbolDecoder, DwarfAddressDecoder, DwarfCfiDecoder)
 
 class ELFSection(MemoryRange):
     """! @brief Memory range for a section of an ELF file.
@@ -112,7 +114,7 @@ class ELFBinaryFile(object):
             self._file = elf
         self._elf = ELFFile(self._file)
         self._memory_map = memory_map or MemoryMap()
-
+        self._dwarf_info = None
         self._symbol_decoder = None
         self._address_decoder = None
         self._cfi_decoder = None
@@ -220,6 +222,18 @@ class ELFBinaryFile(object):
         @return A list of MemoryRange objects sorted by start address.
         """
         return self._unused
+    
+    @property
+    def elf_file(self):
+        return self._elf
+    
+    @property
+    def dwarf_info(self):
+        if self._dwarf_info is None:
+            if not self._elf.has_dwarf_info():
+                raise exceptions.MissingDebugInfoError("No DWARF debug info available")
+            self._dwarf_info = self._elf.get_dwarf_info()
+        return self._dwarf_info
 
     @property
     def symbol_decoder(self):
@@ -230,13 +244,13 @@ class ELFBinaryFile(object):
     @property
     def address_decoder(self):
         if self._address_decoder is None:
-            self._address_decoder = DwarfAddressDecoder(self._elf)
+            self._address_decoder = DwarfAddressDecoder(self._elf, self.dwarf_info)
         return self._address_decoder
 
     @property
     def cfi_decoder(self):
         if self._cfi_decoder is None:
-            self._cfi_decoder = DwarfCfiDecoder(self._elf)
+            self._cfi_decoder = DwarfCfiDecoder(self._elf, self.dwarf_info)
         return self._cfi_decoder
 
 

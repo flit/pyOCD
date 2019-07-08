@@ -112,4 +112,11 @@ class FlashProgramFailure(FlashFailure):
     """! @brief An attempt to program flash failed. """
     pass
 
+class DebugInfoError(Error):
+    """! @brief Error related to debug data (i.e., DWARF). """
+    pass
+
+class MissingDebugInfoError(DebugInfoError):
+    """! @brief No debug data is available. """
+    pass
 
