@@ -105,7 +105,13 @@ class ELFBinaryFile(object):
     map are considered.
     """
     
-    def __init__(self, elf, memory_map=None):
+    def __init__(self, elf, core=None):
+        """! @brief Constructor.
+        
+        @param self
+        @param elf Path or file-like object for the .elf file.
+        @param core Optional reference to the core on which the ELF will run.
+        """
         self._owns_file = False
         if isinstance(elf, six.string_types):
             self._file = open(elf, 'rb')
@@ -113,7 +119,8 @@ class ELFBinaryFile(object):
         else:
             self._file = elf
         self._elf = ELFFile(self._file)
-        self._memory_map = memory_map or MemoryMap()
+        self._core = core
+        self._memory_map = core.memory_map if (core is not None) else MemoryMap()
         self._dwarf_info = None
         self._symbol_decoder = None
         self._address_decoder = None
@@ -225,10 +232,12 @@ class ELFBinaryFile(object):
     
     @property
     def elf_file(self):
+        """! @brief Access the underlying ELFFile object."""
         return self._elf
     
     @property
     def dwarf_info(self):
+        """! @brief Get the DWARFInfo object."""
         if self._dwarf_info is None:
             if not self._elf.has_dwarf_info():
                 raise exceptions.MissingDebugInfoError("No DWARF debug info available")
