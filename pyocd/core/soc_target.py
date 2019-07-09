@@ -78,12 +78,13 @@ class SoCTarget(Target, GraphNode):
         if filename is None:
             self._elf = None
         else:
-            self._elf = ELFBinaryFile(filename, self.memory_map)
-            for core_number in range(len(self.cores)):
+            # TODO: each core should have its own memory map and elf
+            #   but we don't want to unnecessarily duplicate all elf data in memory
+            self._elf = ELFBinaryFile(filename, self.selected_core)
+            for core_number in self.cores:
                 self.cores[core_number].elf = self._elf
-                if self.session.options['cache.read_code_from_elf']:
-                    self.cores[core_number].set_target_context(
-                            ElfReaderContext(self.cores[core_number].get_target_context(), self._elf))
+                self.cores[core_number].set_target_context(
+                        ElfReaderContext(self.cores[core_number].get_target_context(), self._elf))
     
     @property
     def supported_security_states(self):
