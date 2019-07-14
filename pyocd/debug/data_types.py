@@ -458,10 +458,10 @@ class FunctionType(DataType):
 class Variable(object):
     """! @brief Information about a program variable."""
     
-    def __init__(self, name, data_type, addr, loc=None):
+    def __init__(self, name, data_type, address_expr, loc=None):
         self._name = name
         self._type = data_type
-        self._addr = addr
+        self._address_expr = address_expr
         self._source_loc = loc
     
     @property
@@ -473,8 +473,8 @@ class Variable(object):
         return self._type
     
     @property
-    def addr(self):
-        return self._addr
+    def address_expr(self):
+        return self._address_expr
     
     @property
     def source_location(self):
@@ -483,7 +483,7 @@ class Variable(object):
     
     def __repr__(self):
         return "<{}@{:#10x} name={} typename={} addr={}>".format(
-            self.__class__.__name__, id(self), self.name, self.data_type.name, self.addr)
+            self.__class__.__name__, id(self), self.name, self.data_type.name, self.address_expr)
     
 
 

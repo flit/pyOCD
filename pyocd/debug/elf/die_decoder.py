@@ -37,6 +37,7 @@ from ..data_types import (
     FunctionType,
     Variable,
     )
+from .expr import DwarfExpr
 from ...core import exceptions
 from ...utility.compatibility import to_str_safe
 
@@ -262,6 +263,8 @@ class DwarfDieDecoder(object):
             # Ignore declarations.
             pass
         else:
+            # If this DIE is the definition corresponding to a declaration, then much of the
+            # interesting info we want is into the declaration DIE.
             if 'DW_AT_specification' in die.attributes:
                 offset = die.attributes['DW_AT_specification'].value + self._current_cu.cu_offset
                 decl = self._dies_by_offset[offset]
@@ -271,9 +274,15 @@ class DwarfDieDecoder(object):
             else:
                 name = to_str_safe(die.attributes['DW_AT_name'].value)
                 var_type = self._get_referenced_type(die)
-            addr = die.attributes['DW_AT_location'].value
+            addr = die.attributes['DW_AT_location']
+            assert addr.form == 'DW_FORM_exprloc'
+            # Check for a "DW_OP_addr: 0" expression that indicates the variable was elided from
+            # the link. There must be a better way to do this...
+            if addr.value == [3, 0, 0, 0, 0]:
+                return
+            addr_expr = DwarfExpr(addr.value, self._current_cu.structs)
             loc = self._get_source_loc(die)
-            new_var = Variable(name, var_type, addr, loc)
+            new_var = Variable(name, var_type, addr_expr, loc)
             self._defs_by_offset[die.offset] = new_var
             self._globals[name] = new_var
     
