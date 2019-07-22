@@ -1,0 +1,107 @@
+// Lark grammar for debug sequence expressions
+
+// Precedence from high to low:
+// 1. function call, parentheses
+// 2. unary ! ~
+// 3. * / %
+// 4. + -
+// 5. << >>
+// 6. < <= > >=
+// 7. == !=
+// 8. &
+// 9. ^
+// 10. |
+// 11. &&
+// 12. ||
+// 13. ?:
+
+start:              (statement)*
+
+?statement:         decl_stmt ";"?
+    |               assign_stmt ";"?
+    |               expr_stmt ";"?
+
+decl_stmt:          "__var" IDENT "=" expr
+
+assign_stmt:        IDENT ASSIGNOP expr
+
+// This creates a tree node for expression statements that is easy to identify.
+expr_stmt:          expr
+
+?expr:              or_term
+    |               ternary_expr
+    |               ESCAPED_STRING
+
+ternary_expr:       expr "?" expr ":" expr
+
+?or_term:           and_term
+    |               and_term OR and_term -> binary_expr
+
+?and_term:          bitor_term
+    |               bitor_term AND bitor_term -> binary_expr
+
+?bitor_term:        bitxor_term
+    |               bitxor_term BITOR bitxor_term -> binary_expr
+
+?bitxor_term:       bitand_term
+    |               bitand_term BITXOR bitand_term -> binary_expr
+
+?bitand_term:       eq_term
+    |               eq_term BITAND eq_term -> binary_expr
+
+?eq_term:           lg_term
+    |               lg_term EQ_OP  lg_term -> binary_expr
+
+?lg_term:           shift_term
+    |               shift_term LG_OP shift_term -> binary_expr
+
+?shift_term:        add_term
+    |               add_term SHIFT_OP add_term -> binary_expr
+
+?add_term:          product_term
+    |               product_term ADD_OP product_term -> binary_expr
+
+?product_term:      unary_term
+    |               unary_term PRODUCT_OP unary_term -> binary_expr
+
+?unary_term:        atom
+    |               UNARY_OP atom -> unary_expr
+
+?atom:              IDENT
+    |               INTLIT
+    |               "(" expr ")"
+    |               fncall
+
+fncall:             IDENT "(" [expr ("," expr)*] ")"
+
+
+BINDIGIT: "0".."1"
+INTLIT: "0x" HEXDIGIT+ | "0b" BINDIGIT+ | DIGIT+
+
+IDENT: CNAME
+
+OR: "||"
+AND: "&&"
+BITOR: "|"
+BITXOR: "^"
+BITAND: "&"
+
+EQ_OP.2: "==" | "!="
+SHIFT_OP.2: "<<" | ">>"
+LG_OP: "<=" | "<" | ">=" | ">"
+ADD_OP: "+" | "-"
+PRODUCT_OP: "*" | "/" | "%"
+UNARY_OP: "!" | "~"
+
+ASSIGNOP: "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | "="
+
+COMMENT: /\s*/ "//" /[^\n]*/
+
+%import common.DIGIT
+%import common.HEXDIGIT
+%import common.ESCAPED_STRING
+%import common.WS
+%import common.CNAME
+
+%ignore WS
+%ignore COMMENT
