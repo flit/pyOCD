@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017 Arm Limited
+# Copyright (c) 2017-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,6 +55,7 @@ BOARD_ID_TO_INFO = {
     "0234": BoardInfo(  "Rapid-IoT-KW41Z",      "kw41z4",           "l1_kw41z4.bin",        ),
     "0235": BoardInfo(  "LPC54018IoTModule",    "lpc54018jet180",   None,                   ),
     "0236": BoardInfo(  "LPCXpresso55S69",      "lpc55s69",         "lpcxpresso55s69.bin",  ),
+    "0237": BoardInfo(  "FRDM-K32L3A6",         "k32l3a6",          "l1_k32w042s.bin",      ),
     "0240": BoardInfo(  "FRDM-K64F",            "k64f",             "l1_k64f.bin",          ),
     "0245": BoardInfo(  "IBMEthernetKit",       "k64f",             "l1_k64f.bin"           ),
     "0250": BoardInfo(  "FRDM-KW24D512",        "kw24d5",           "l1_kw24d5.bin"         ),
