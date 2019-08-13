@@ -208,7 +208,7 @@ class K32W042S(Kinetis):
             # Wait until the target is halted
             with Timeout(HALT_TIMEOUT) as to:
                 while to.check():
-                    if self.mdm_ap.read_reg(MDM_CORE_STATUS) & MDM_CORE_STATUS_CM4_HALTED != MDM_CORE_STATUS_CM4_HALTED:
+                    if self.mdm_ap.read_reg(MDM_CORE_STATUS) & MDM_CORE_STATUS_CM4_HALTED == MDM_CORE_STATUS_CM4_HALTED:
                         break
                     LOG.debug("Waiting for mdm halt")
                     sleep(0.01)
