@@ -375,7 +375,7 @@ class K32L3A6(Kinetis):
         return seq
 
     def perform_halt_on_connect(self):
-        if self.halt_on_connect:
+        if self.session.options.get('connect_mode') == 'under-reset' or self._force_halt_on_connect:
             # Prevent the target from resetting if it has invalid code
             with Timeout(HALT_TIMEOUT) as to:
                 while to.check():
@@ -384,6 +384,12 @@ class K32L3A6(Kinetis):
                         break
                 else:
                     raise exceptions.TimeoutError("Timed out attempting to set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
+
+        else:
+            super(Kinetis, self).perform_halt_on_connect()
+
+    def post_connect(self):
+        if self.session.options.get('connect_mode') == 'under-reset' or self._force_halt_on_connect:
 
             # We can now deassert reset.
             self.dp.assert_reset(False)
