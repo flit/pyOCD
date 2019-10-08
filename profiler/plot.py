@@ -146,9 +146,9 @@ class PolyPoints:
         self.scaled = self.points
         self.attributes = {}
         self.attributes.update(self._attributes)
-        for name, value in attr.items():
-            if name not in self._attributes.keys():
-                raise KeyError, "Style attribute incorrect. Should be one of %s" % self._attributes.keys()
+        for name, value in list(attr.items()):
+            if name not in list(self._attributes.keys()):
+                raise KeyError("Style attribute incorrect. Should be one of %s" % list(self._attributes.keys()))
             self.attributes[name] = value
 
     def setLogScale(self, logscale):
@@ -166,7 +166,7 @@ class PolyPoints:
             else:
                 return self._points
         else:
-            raise AttributeError, name
+            raise AttributeError(name)
 
     def log10(self, data, ind):
         data = numpy.compress(data[:,ind]>0,data,0)
@@ -441,7 +441,7 @@ class PlotGraphics:
         yLabel - label shown on y-axis
         """
         if type(objects) not in [list,tuple]:
-            raise TypeError, "objects argument should be list or tuple"
+            raise TypeError("objects argument should be list or tuple")
         self.objects = objects
         self.title= title
         self.xLabel= xLabel
@@ -450,7 +450,7 @@ class PlotGraphics:
 
     def setLogScale(self, logscale):
         if type(logscale) != tuple:
-            raise TypeError, 'logscale must be a tuple of bools, e.g. (False, False)'
+            raise TypeError('logscale must be a tuple of bools, e.g. (False, False)')
         if len(self.objects) == 0:
             return
         for o in self.objects:
@@ -796,7 +796,7 @@ class PlotCanvas(wx.Panel):
 
     def setLogScale(self, logscale):
         if type(logscale) != tuple:
-            raise TypeError, 'logscale must be a tuple of bools, e.g. (False, False)'
+            raise TypeError('logscale must be a tuple of bools, e.g. (False, False)')
         if self.last_draw is not None:
             graphics, xAxis, yAxis= self.last_draw
             graphics.setLogScale(logscale)
@@ -835,7 +835,7 @@ class PlotCanvas(wx.Panel):
     def SetShowScrollbars(self, value):
         """Set True to show scrollbars"""
         if value not in [True,False]:
-            raise TypeError, "Value should be True or False"
+            raise TypeError("Value should be True or False")
         if value == self.GetShowScrollbars():
             return
         self._sb_show = value
@@ -872,7 +872,7 @@ class PlotCanvas(wx.Panel):
     def SetEnableDrag(self, value):
         """Set True to enable drag."""
         if value not in [True,False]:
-            raise TypeError, "Value should be True or False"
+            raise TypeError("Value should be True or False")
         if value:
             if self.GetEnableZoom():
                 self.SetEnableZoom(False)
@@ -887,7 +887,7 @@ class PlotCanvas(wx.Panel):
     def SetEnableZoom(self, value):
         """Set True to enable zooming."""
         if value not in [True,False]:
-            raise TypeError, "Value should be True or False"
+            raise TypeError("Value should be True or False")
         if value:
             if self.GetEnableDrag():
                 self.SetEnableDrag(False)
@@ -903,7 +903,7 @@ class PlotCanvas(wx.Panel):
     def SetEnableGrid(self, value):
         """Set True, 'Horizontal' or 'Vertical' to enable grid."""
         if value not in [True,False,'Horizontal','Vertical']:
-            raise TypeError, "Value should be True, False, Horizontal or Vertical"
+            raise TypeError("Value should be True, False, Horizontal or Vertical")
         self._gridEnabled= value
         self.Redraw()
 
@@ -914,7 +914,7 @@ class PlotCanvas(wx.Panel):
     def SetEnableCenterLines(self, value):
         """Set True, 'Horizontal' or 'Vertical' to enable center line(s)."""
         if value not in [True,False,'Horizontal','Vertical']:
-            raise TypeError, "Value should be True, False, Horizontal or Vertical"
+            raise TypeError("Value should be True, False, Horizontal or Vertical")
         self._centerLinesEnabled= value
         self.Redraw()
 
@@ -926,7 +926,7 @@ class PlotCanvas(wx.Panel):
         """Set True, 'Bottomleft-Topright' or 'Bottomright-Topleft' to enable
         center line(s)."""
         if value not in [True,False,'Bottomleft-Topright','Bottomright-Topleft']:
-            raise TypeError, "Value should be True, False, Bottomleft-Topright or Bottomright-Topleft"
+            raise TypeError("Value should be True, False, Bottomleft-Topright or Bottomright-Topleft")
         self._diagonalsEnabled= value
         self.Redraw()
 
@@ -937,7 +937,7 @@ class PlotCanvas(wx.Panel):
     def SetEnableLegend(self, value):
         """Set True to enable legend."""
         if value not in [True,False]:
-            raise TypeError, "Value should be True or False"
+            raise TypeError("Value should be True or False")
         self._legendEnabled= value
         self.Redraw()
 
@@ -948,7 +948,7 @@ class PlotCanvas(wx.Panel):
     def SetEnableTitle(self, value):
         """Set True to enable title."""
         if value not in [True,False]:
-            raise TypeError, "Value should be True or False"
+            raise TypeError("Value should be True or False")
         self._titleEnabled= value
         self.Redraw()
 
@@ -959,7 +959,7 @@ class PlotCanvas(wx.Panel):
     def SetEnablePointLabel(self, value):
         """Set True to enable pointLabel."""
         if value not in [True,False]:
-            raise TypeError, "Value should be True or False"
+            raise TypeError("Value should be True or False")
         self._pointLabelEnabled= value
         self.Redraw()  #will erase existing pointLabel if present
         self.last_PointLabel = None
@@ -1109,9 +1109,9 @@ class PlotCanvas(wx.Panel):
 
         # check Axis is either tuple or none
         if type(xAxis) not in [type(None),tuple]:
-            raise TypeError, "xAxis should be None or (minX,maxX)"+str(type(xAxis))
+            raise TypeError("xAxis should be None or (minX,maxX)"+str(type(xAxis)))
         if type(yAxis) not in [type(None),tuple]:
-            raise TypeError, "yAxis should be None or (minY,maxY)"+str(type(xAxis))
+            raise TypeError("yAxis should be None or (minY,maxY)"+str(type(xAxis)))
 
         # check case for axis = (a,b) where a==b caused by improper zooms
         if xAxis != None:
@@ -1147,7 +1147,7 @@ class PlotCanvas(wx.Panel):
             if not isinstance(dc, wx.GCDC):
                 try:
                     dc = wx.GCDC(dc)
-                except Exception, exception:
+                except Exception as exception:
                     pass
                 else:
                     if self._hiResEnabled:
@@ -1289,7 +1289,7 @@ class PlotCanvas(wx.Panel):
         if self._antiAliasingEnabled:
             try:
                 dc = wx.GCDC(dc)
-            except Exception, exception:
+            except Exception as exception:
                 pass
         dc.SetTextForeground(self.GetForegroundColour())
         dc.SetTextBackground(self.GetBackgroundColour())
@@ -1398,7 +1398,7 @@ class PlotCanvas(wx.Panel):
             self._drawRubberBand(self._zoomCorner1, self._zoomCorner2) # add new
         elif self._dragEnabled and event.LeftIsDown():
             coordinates = event.GetPosition()
-            newpos, oldpos = map(numpy.array, map(self.PositionScreenToUser, [coordinates, self._screenCoordinates]))
+            newpos, oldpos = list(map(numpy.array, list(map(self.PositionScreenToUser, [coordinates, self._screenCoordinates]))))
             dist = newpos-oldpos
             self._screenCoordinates = coordinates
 
@@ -1456,7 +1456,7 @@ class PlotCanvas(wx.Panel):
         if self._antiAliasingEnabled:
             try:
                 dc = wx.GCDC(dc)
-            except Exception, exception:
+            except Exception as exception:
                 pass
 
     def OnSize(self,event):
@@ -1569,7 +1569,7 @@ class PlotCanvas(wx.Panel):
                 pnt2= (trhc[0]+legendLHS+legendSymExt[0], trhc[1]+s+lineHeight/2.)
                 o.draw(dc, self.printerScale, coord= numpy.array([pnt1,pnt2]))
             else:
-                raise TypeError, "object is neither PolyMarker or PolyLine instance"
+                raise TypeError("object is neither PolyMarker or PolyLine instance")
             # draw legend txt
             pnt= (trhc[0]+legendLHS+legendSymExt[0]+5*self._pointSize[0], trhc[1]+s+lineHeight/2.-legendTextExt[1]/2)
             dc.DrawText(o.getLegend(),pnt[0],pnt[1])
@@ -1683,7 +1683,7 @@ class PlotCanvas(wx.Panel):
             else:
                 return upper, lower
         else:
-            raise ValueError, str(spec) + ': illegal axis specification'
+            raise ValueError(str(spec) + ': illegal axis specification')
 
     def _drawAxes(self, dc, p1, p2, scale, shift, xticks, yticks):
 
@@ -1822,10 +1822,10 @@ class PlotCanvas(wx.Panel):
             format = '%+7.1e'
         elif power >= 0:
             digits = max(1, int(power))
-            format = '%' + `digits`+'.0f'
+            format = '%' + repr(digits)+'.0f'
         else:
             digits = -int(power)
-            format = '%'+`digits+2`+'.'+`digits`+'f'
+            format = '%'+repr(digits+2)+'.'+repr(digits)+'f'
         ticks = []
         t = -grid*numpy.floor(-lower/grid)
         while t <= upper:
@@ -1931,7 +1931,7 @@ class PlotPrintout(wx.Printout):
         if self.graph._antiAliasingEnabled and not isinstance(dc, wx.GCDC):
             try:
                 dc = wx.GCDC(dc)
-            except Exception, exception:
+            except Exception as exception:
                 pass
             else:
                 if self.graph._hiResEnabled:
