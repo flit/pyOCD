@@ -1,21 +1,21 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
-"""
- mbed CMSIS-DAP debugger
- Copyright (c) 2006-2013 ARM Limited
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# pyOCD debugger
+# Copyright (c) 2013-2015 NXP
+# Copyright (c) 2019 Arm Limited
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from __future__ import print_function
 import sys
@@ -27,8 +27,9 @@ import wx.stc
 import plot
 import threading
 import numpy
-import Queue
 import time
+import six
+import logging
 from elapsedtimer import ElapsedTimer
 
 # Make disasm optional.
@@ -39,8 +40,9 @@ except ImportError:
     isCapstoneAvailable = False
 
 sys.path.append('..')
-import pyOCD
-from pyOCD.debug.elf.decoder import DwarfAddressDecoder
+import pyocd
+from pyocd.core.helpers import ConnectHelper
+from pyocd.debug.elf.decoder import DwarfAddressDecoder
 
 import elapsedtimer
 # elapsedtimer.enable = False
@@ -52,6 +54,10 @@ kFunctionColumn = 3
 kFileColumn = 4
 
 targetVdd = 3.0
+
+# Enable logging.
+LOG_FORMAT = "%(relativeCreated)07d:%(levelname)s:%(module)s:%(message)s"
+logging.basicConfig(level=logging.DEBUG, format=LOG_FORMAT)
 
 def sample_to_mA(x):
     return targetVdd*x/0xffff/120.0*1000.0
@@ -276,13 +282,13 @@ class ProcessorThread(threading.Thread):
         threading.Thread.__init__(self, name="Processor")
         self.stopFlag = False
         self._data = data
-        self._queue = Queue.Queue()
+        self._queue = six.moves.queue.Queue()
 
     def run(self):
         while not self.stopFlag:
             try:
                 d = self._queue.get(timeout=1)
-            except Queue.Empty:
+            except six.moves.queue.Empty:
                 break
             else:
                 self._data.append(d)
@@ -298,7 +304,7 @@ class ProfilerThread(threading.Thread):
         threading.Thread.__init__(self, name="Profiler")
         self.board = board
         self.target = board.target
-        self.transport = board.transport
+        self.transport = board.session.probe
         self.stopFlag = False
         self.data = data
 
@@ -323,19 +329,19 @@ class ProfilerThread(threading.Thread):
 
         self.read_vdd()
 
-        self.transport.startProfiling()
+        self.transport.start_profiling()
 
         print("Profiling started")
 
     def is_running(self):
-        return self.target.getState() == pyOCD.target.target.TARGET_RUNNING
+        return self.target.get_state() == pyocd.core.target.TARGET_RUNNING
 
     def run(self):
         self.start_device()
         while not self.stopFlag:
             self._read_profile_data()
         print("Stopping profiling")
-        self.transport.stopProfiling()
+        self.transport.stop_profiling()
 
     def stop(self):
         self.stopFlag = True
@@ -343,7 +349,7 @@ class ProfilerThread(threading.Thread):
 
     def _read_profile_data(self):
 #         with ElapsedTimer('read usb data'):
-        data = self.transport.readProfiling(64)
+        data = self.transport.read_profiling(64)
 #         print("read %d samples" % len(data))
 #         self.processor_thread.push_data(data)
         self.data.append(data)
@@ -603,7 +609,7 @@ class ProfileWindow(wx.Frame):
     def __init__(self, parent):
         super(ProfileWindow, self).__init__(parent, title='Profiler', size=(1200, 800))
 
-        self.board = None
+        self.session = None
         self.profile_thread = None
         self._graph_update_timer = wx.Timer(self)
         self._needs_update = False
@@ -734,10 +740,12 @@ class ProfileWindow(wx.Frame):
             self.start_stop_button.SetLabel('Start')
             self.start_stop_button.Disable()
         else:
-            self.board = pyOCD.board.MbedBoard.chooseBoard(blocking=False, return_first=True)
-            if self.board is not None:
+            self.session = ConnectHelper.session_with_chosen_probe(
+                            blocking=False, return_first=True, frequency=8000000)
+            if self.session is not None:
+                self.session.open()
+                self.board = self.session.board
                 self._is_connected = True
-                pyOCD.transport.cmsis_dap_core.dapSWJClock(self.board.interface, 8000000)
                 self.board.target.resume()
 
                 self.connect_button.SetLabel('Disconnect')
@@ -752,7 +760,7 @@ class ProfileWindow(wx.Frame):
 
         if not self._is_running:
             self.profile_data.clear()
-            self.profile_thread = ProfilerThread(self.board, self.profile_data)
+            self.profile_thread = ProfilerThread(self.session, self.profile_data)
             self.profile_thread.start()
 #             if not self.profile_thread.is_running():
 #                 self.profile_thread.stop()
