@@ -54,6 +54,7 @@ from .flash.eraser import FlashEraser
 from .flash.file_programmer import FileProgrammer
 from .core import options
 from .coresight.generic_mem_ap import GenericMemAPTarget
+from .utility.color_logger import ColoredLogger
 
 try:
     import cmsis_pack_manager
@@ -130,6 +131,8 @@ class PyOCDTool(object):
             help="More logging. Can be specified multiple times.")
         loggingOptions.add_argument('-q', '--quiet', action='count', default=0,
             help="Less logging. Can be specified multiple times.")
+        loggingOptions.add_argument('--color', choices=("on", "auto", "off"), default="auto",
+            help="Control color logging. Default is auto.")
         
         # Define common options for all subcommands, excluding --verbose and --quiet.
         commonOptionsNoLoggingParser = argparse.ArgumentParser(description='common', add_help=False)
@@ -364,7 +367,9 @@ class PyOCDTool(object):
         """
         self._log_level_delta = (self._args.quiet * 10) - (self._args.verbose * 10)
         level = max(1, self._default_log_level + self._log_level_delta)
-        logging.basicConfig(level=level, format=LOG_FORMAT)
+        if (self._args.color == "on") or (self._args.color == "auto" and sys.stdout.isatty()):
+            logging.setLoggerClass(ColoredLogger)
+        logging.getLogger('pyocd').setLevel(level)
     
     def _increase_logging(self, loggers):
         """! @brief Increase logging level for a set of subloggers."""
