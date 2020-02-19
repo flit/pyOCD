@@ -109,14 +109,22 @@ COMPONENT_MAP = {
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x13, 0)      : CmpInfo('ETM-M23',   None            ),
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x1a02) : CmpInfo('DWT',       DWTv2.factory   ), # M23
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M23
+    (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x14, 0x1a14) : CmpInfo('CTI',       None            ), # M23
     (ARM_ID, CORESIGHT_CLASS, 0xd20, 0x00, 0x2a04) : CmpInfo('SCS-M23',   CortexM_v8M.factory ), # M23
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x43, 0x1a01) : CmpInfo('ITM',       ITM.factory     ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a02) : CmpInfo('DWT',       DWTv2.factory   ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x14, 0x1a14) : CmpInfo('CTI',       None            ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x00, 0x2a04) : CmpInfo('SCS-M33',   CortexM_v8M.factory ), # M33
-    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x13, 0x4a13) : CmpInfo('ETM',       None            ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x13, 0x4a13) : CmpInfo('ETM-M33',   None            ), # M33
     (ARM_ID, CORESIGHT_CLASS, 0xd21, 0x11, 0)      : CmpInfo('TPIU-M33',  TPIU.factory    ), # M33
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x43, 0x1a01) : CmpInfo('ITM',       ITM.factory     ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x00, 0x1a02) : CmpInfo('DWT',       DWTv2.factory   ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x00, 0x1a03) : CmpInfo('BPU',       FPB.factory     ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x00, 0x2a04) : CmpInfo('SCS-M55',   CortexM_v8M.factory ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x11, 0)      : CmpInfo('TPIU-M55',  TPIU.factory    ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x13, 0x4a13) : CmpInfo('ETM-M55',   None            ), # M55
+    (ARM_ID, CORESIGHT_CLASS, 0xd22, 0x16, 0x0a06) : CmpInfo('PMU-M55',   None            ), # M55
     (ARM_ID, GENERIC_CLASS,   0x000, 0x00, 0)      : CmpInfo('SCS-M3',    CortexM.factory ),
     (ARM_ID, GENERIC_CLASS,   0x001, 0x00, 0)      : CmpInfo('ITM',       ITM.factory     ),
     (ARM_ID, GENERIC_CLASS,   0x002, 0x00, 0)      : CmpInfo('DWT',       DWT.factory     ),
