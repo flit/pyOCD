@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # Copyright (c) 2020 Men Shiyun
 # Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 # SPDX-License-Identifier: Apache-2.0
@@ -33,6 +33,7 @@ from ...core import exceptions
 from ...core.target import Target
 from ...core.memory_map import (MemoryMap, MemoryType, MEMORY_TYPE_CLASS_MAP, FlashRegion)
 from ...utility.compatibility import BadZipFile
+from ...debug import sequences
 
 LOG = logging.getLogger(__name__)
 
@@ -48,6 +49,8 @@ class _DeviceInfo(object):
         self.memories = kwargs.get('memories', [])
         self.algos = kwargs.get('algos', [])
         self.debugs = kwargs.get('debugs', [])
+        self.sequences = kwargs.get('sequences', [])
+        self.debugvars = kwargs.get('debugvars', [])
 
 class CmsisPack(object):
     """! @brief Wraps a CMSIS Device Family Pack.
@@ -110,6 +113,13 @@ class CmsisPack(object):
         # Extract devices.
         for family in self._pdsc.iter('family'):
             self._parse_devices(family)
+            
+    @property
+    def pack_name(self):
+        """! @brief Name of the CMSIS-Pack.
+        @return Contents of the required <name> element, or None if missing.
+        """
+        return self._pdsc.findtext('name')
     
     @property
     def pdsc(self):
@@ -132,6 +142,10 @@ class CmsisPack(object):
                 newState.algos.append(elem)
             elif elem.tag == 'debug':
                 newState.debugs.append(elem)
+            elif elem.tag == 'sequences':
+                newState.sequences += elem.findall('sequence')
+            elif elem.tag == 'debugvars':
+                newState.debugvars.append(elem)
             # Save any elements that we will recurse into.
             elif elem.tag in ('subFamily', 'device', 'variant'):
                 children.append(elem)
@@ -146,7 +160,9 @@ class CmsisPack(object):
                                         families=self._extract_families(),
                                         memories=self._extract_memories(),
                                         algos=self._extract_algos(),
-                                        debugs=self._extract_debugs()
+                                        debugs=self._extract_debugs(),
+                                        sequences=self._extract_sequences(),
+                                        debugvars=self._extract_debugvars(),
                                         )
             
             dev = CmsisPackDevice(self, deviceInfo)
@@ -159,6 +175,7 @@ class CmsisPack(object):
         self._state_stack.pop()
 
     def _extract_families(self):
+        """! @brief Generate list of family names for a device."""
         families = []
         for state in self._state_stack:
             elem = state.element
@@ -169,6 +186,20 @@ class CmsisPack(object):
         return families
 
     def _extract_items(self, state_info_name, filter):
+        """! @brief Generic extractor utility.
+        
+        Iterates over saved elements for the specified device state info for each level of the
+        device state stack, from outer to inner, calling the provided filter callback each
+        iteration. A dictionary object is created and repeatedly passed to the filter callback, so
+        state can be stored across calls to the filter.
+        
+        The general idea is that the filter callback extracts some identifying information from the
+        element it is given and uses that as a key in the dictionary. When the filter is called for
+        more deeply nested elements, those elements will override the any previously examined
+        elements with the same identifier.
+        
+        @return All values from the dictionary.
+        """
         map = {}
         for state in self._state_stack:
             for elem in getattr(state, state_info_name):
@@ -179,6 +210,14 @@ class CmsisPack(object):
         return list(map.values())
 
     def _extract_memories(self):
+        """! @brief Extract memory elements.
+        
+        The unique identifier is a bi-tuple of the memory's name, which is either the 'name' or 'id' attribute,
+        in that order, plus the pname. If neither attribute exists, the region base and size are turned into
+        a string.
+
+        In addition to the name based filtering, memory regions are checked to prevent overlaps.
+        """
         def get_start_and_size(elem):
             try:
                 start = int(elem.attrib['start'], base=0)
@@ -230,9 +269,16 @@ class CmsisPack(object):
         return self._extract_items('memories', filter)
 
     def _extract_algos(self):
+        """! @brief Extract algorithm elements.
+        
+        The unique identifier is the algorithm's memory address range.
+        
+        Any algorithm elements with a 'style' attribuet not set to 'Keil' (case-insensitive) are
+        skipped.
+        """
         def filter(map, elem):
             # We only support Keil FLM style flash algorithms (for now).
-            if ('style' in elem.attrib) and (elem.attrib['style'] != 'Keil'):
+            if ('style' in elem.attrib) and (elem.attrib['style'].lower() != 'keil'):
                 LOG.debug("skipping non-Keil flash algorithm")
                 return None, None
     
@@ -247,6 +293,15 @@ class CmsisPack(object):
         return self._extract_items('algos', filter)
     
     def _extract_debugs(self):
+        """! @brief Extract debug elements.
+        
+        If the debug element does not have a 'Pname' element, its identifier is set to "*" to
+        represent that it applies to all processors.
+        
+        Otherwise, the identifier is the element's 'Pname' attribute combined with 'Punit' if
+        present. When 'Pname' is detected and a "*" key is in the map, the map is cleared before
+        adding the current element.
+        """
         def filter(map, elem):
             if 'Pname' in elem.attrib:
                 name = elem.attrib['Pname']
@@ -263,6 +318,45 @@ class CmsisPack(object):
                 map['*'] = elem
         
         return self._extract_items('debugs', filter)
+    
+    def _extract_sequences(self):
+        """! @brief Extract debug sequence elements.
+        
+        The unique identifier is the sequence's 'name' attribute, combined with 'Pname' if present.
+        """
+        def filter(map, elem):
+            if 'name' not in elem.attrib:
+                LOG.debug("skipping unnamed debug sequence")
+                return
+            
+            # Combine name and Pname.
+            name = elem.attrib['name']
+            pname = elem.attrib.get('Pname', None)
+        
+            map[(name, pname)] = elem
+        
+        return self._extract_items('sequences', filter)
+    
+    def _extract_debugvars(self):
+        """! @brief Extract debugvar elements.
+        
+        Works similar to _extract_debugs(), where only a single debugvar element is allowed unless
+        the 'Pname' attribute appears in one of the elements.
+        """
+        def filter(map, elem):
+            if 'Pname' in elem.attrib:
+                name = elem.attrib['Pname']
+            
+                if '*' in map:
+                    map.clear()
+                map[name] = elem
+            else:
+                # No processor name was provided, so this debugvar element applies to
+                # all processors.
+                map.clear()
+                map['*'] = elem
+        
+        return self._extract_items('debugvars', filter)
     
     def get_file(self, filename):
         """! @brief Return file-like object for a file within the pack.
@@ -326,6 +420,8 @@ class CmsisPackDevice(object):
         self._saw_startup = False
         self._default_ram = None
         self._memory_map = None
+        self._sequences = None
+        self._debugvars = None
             
     def _build_memory_regions(self):
         """! @brief Creates memory region instances for the device.
@@ -511,6 +607,66 @@ class CmsisPackDevice(object):
                 return algo
         return None
 
+    def _build_sequences(self):
+        """! @brief Convert 'sequence' elements into DebugSequenceNode objects."""
+        self._sequences = {}
+        for elem in self._info.sequences:
+            # Extract sequence name.
+            try:
+                name = elem.attrib['name']
+            except KeyError:
+                LOG.warning("invalid debug sequence; missing name")
+                continue
+
+            try:
+                # Extract optional sequence attributes.
+                is_enabled = elem.attrib.get('enabled', True)
+                pname = elem.attrib.get('Pname', None)
+                info = elem.attrib.get('info', "")
+                
+                # Create the top level sequence node.
+                sequence = sequences.DebugSequence(name, is_enabled, pname, info)
+
+                # Start processing subelements in the sequence.
+                for child in elem:
+                    self._build_one_sequence_node(sequence, child)
+                sequence.dump()
+                
+                # Save the complete sequence object.
+                self._sequences[sequence.name] = sequence
+            except KeyError:
+                LOG.debug("invalid debug sequence")
+    
+    def _build_one_sequence_node(self, parent, elem):
+        """! @brief Convert one 'sequence' element into a DebugSequenceNode object."""
+        # Grab optional info text.
+        info = elem.attrib.get('info', "")
+        
+        # Generate a sequence node based on the element type.
+        if elem.tag == 'block':
+            # Create and attach a block node. No subelements are allowed.
+            node = sequences.Block(elem.text, info)
+            parent.add_child(node)
+        elif elem.tag == 'control':
+            # The attribute name determines the control node's function.
+            if 'if' in elem.attrib:
+                node = sequences.IfControl(elem.attrib['if'], info)
+            elif 'while' in elem.attrib:
+                node = sequences.WhileControl(elem.attrib['while'], info)
+            else:
+                LOG.warning("invalid 'control' node in debug sequence '%s'", parent.find_root().name)
+                return
+            
+            # Attach the new node.
+            parent.add_child(node)
+            
+            # Process control node subelements recursively.
+            for child in elem:
+                self._build_one_sequence_node(node, child)
+        else:
+            LOG.warning("unexpected XML element '%s' in debug sequence '%s'", elem.tag,
+                parent.find_root().name)
+
     @property
     def pack(self):
         """! @brief The CmsisPack object that defines this device."""
@@ -579,6 +735,25 @@ class CmsisPackDevice(object):
                 return Target.ResetType.SW
         except (KeyError, IndexError):
             return Target.ResetType.SW
+    
+    @property
+    def sequences(self):
+        """! @brief Dictionary of defined sequence elements.
+        
+        The dictionary key is the sequence name, value is a DebugSequence instance.
+        """
+        # Lazily construct.
+        if (self._sequences is None) and len(self._info.sequences):
+            self._build_sequences()
+        return self._sequences
+    
+    @property
+    def debug_var_sequence(self):
+        """! @brief A debug sequence Block for the 'debugvars' element."""
+        # Lazily construct.
+        if self._debugvars is None:
+            self._debugvars = None
+        return self._debugvars
     
     def __repr__(self):
         return "<%s@%x %s>" % (self.__class__.__name__, id(self), self.part_number)
