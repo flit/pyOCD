@@ -62,8 +62,38 @@ class DebugSequenceNode(GraphNode):
     def info(self):
         return self._info
 
+class DebugSequenceDelegate(object):
+    """! @brief Delegate interface for handling sequence operations."""
+    
+    def get_sequence_by_name(self, name):
+        pass
+
 class DebugSequence(DebugSequenceNode):
-    """! @brief Named debug sequence."""
+    """! @brief Named debug sequence.
+    
+    Variable scoping:
+    - Sequences and control elements create new scopes.
+    - Scope extends to child control elements.
+    - Block elements do not create a new scope.
+    - Variables in a parent scope can be modified.
+    - Leaving a scope destroys contained variables.
+    
+    Special read-write variables:
+    - __dp, __ap, __errorcontrol
+        - Not affected by scoping
+        - Pushed on stack when another sequence is called via Sequence() function.
+    - __Result
+        - Not pushed when calling another sequence.
+        
+    Special read-only variables:
+    - __protocol
+    - __connection
+    - __traceout
+    - __FlashOp
+    - __FlashAddr
+    - __FlashLen
+    - __FlashArg
+    """
     
     def __init__(self, name, is_enabled=True, pname=None, info=""):
         super(DebugSequence, self).__init__(info)
@@ -82,6 +112,10 @@ class DebugSequence(DebugSequenceNode):
     @property
     def is_enabled(self):
         return self._is_enabled
+    
+    def execute(self, delegate):
+        """! @brief Run the sequence."""
+        
     
     def __repr__(self):
         return "<{}:{:x} {}>".format(self.__class__.__name__, id(self), self.name)
@@ -122,3 +156,23 @@ class Block(DebugSequenceNode):
         return "<{}:{:x} {}>".format(self.__class__.__name__, id(self),
             self._ast.pretty())
 
+class Scope(object):
+    """! @brief Debug sequence execution scope."""
+    
+    def __init__(self):
+        self._variables = {}
+
+class Interpreter(lark.visitors.Interpreter):
+    def start(self, tree):
+        pass
+    
+    def decl_stmt(self, tree):
+        pass
+    
+    def assign_stmt(self, tree):
+        pass
+    
+    def expr_stmt(self, tree):
+        pass
+
+        
