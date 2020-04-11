@@ -630,7 +630,6 @@ class CmsisPackDevice(object):
                 # Start processing subelements in the sequence.
                 for child in elem:
                     self._build_one_sequence_node(sequence, child)
-                sequence.dump()
                 
                 # Save the complete sequence object.
                 self._sequences[sequence.name] = sequence
