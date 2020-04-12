@@ -33,8 +33,12 @@ class Parser(object):
     """! @brief Debug sequence statement parser."""
     
     class ConvertLiterals(lark.visitors.Transformer):
+        """! @brief Transformer to convert integer literal tokens to integers.
+        
+        Running this transformer during the parse is more efficient than handling it post-parse
+        such as during optimization.
+        """
         def INTLIT(self, tok):
-            """! @brief Convert integer literal tokens to integers."""
             return tok.update(value=int(tok.value, base=0))
     
     ## Shared parser object.
@@ -45,12 +49,17 @@ class Parser(object):
                         propagate_positions=True,
                         transformer=ConvertLiterals())
     
-    def __init__(self):
-        pass
-
-    def parse(self, data):
+    @classmethod
+    def parse(cls, data):
         try:
-            return self._parser.parse(data)
+            # Parse the input.
+            tree = cls._parser.parse(data)
+            
+            # Do some optimization.
+            optimized_tree = ConstantFolder().transform(tree)
+            
+            # Return the resulting tree.
+            return optimized_tree
         except lark.exceptions.UnexpectedInput as e:
             message = str(e) + "\n\nContext: " + e.get_context(data, 40)
             six.raise_from(exceptions.Error(message), e)
@@ -188,7 +197,7 @@ class Control(DebugSequenceNode):
         super(Control, self).__init__(info)
         self._type = control_type
         self._predicate = predicate
-        self._ast = Parser().parse(predicate)
+        self._ast = Parser.parse(predicate)
     
     def execute(self, session, delegate, parent_scope):
         """! @brief Run the sequence."""
@@ -220,7 +229,7 @@ class Block(DebugSequenceNode):
     def __init__(self, code, info=""):
         super(Block, self).__init__(info)
         self._code = code
-        self._ast = Parser().parse(code)
+        self._ast = Parser.parse(code)
     
     def execute(self, session, delegate, scope):
         """! @brief Run the sequence."""
@@ -230,6 +239,35 @@ class Block(DebugSequenceNode):
     def __repr__(self):
         return "<{}:{:x} {}>".format(self.__class__.__name__, id(self),
             self._ast.pretty())
+
+class ConstantFolder(lark.visitors.Transformer):
+    """! @brief Performs basic constant folding on expressions."""
+    
+    def _is_intlit(self, node):
+        return isinstance(node, LarkToken) and (node.type == 'INTLIT')
+    
+    def binary_expr(self, children):
+        left = children[0]
+        op = children[1].value
+        right = children[2]
+        
+        if self._is_intlit(left) and self._is_intlit(right):
+            result = _BINARY_OPS[op](left.value, right.value)
+            LOG.info("opt: 0x%x %s 0x%x -> 0x%x", left.value, op, right.value, result)
+            return LarkToken('INTLIT', result)
+
+        return LarkTree('binary_expr', children)
+
+    def unary_expr(self, children):
+        op = children[0].value
+        arg = children[1]
+        
+        if self._is_intlit(arg):
+            result = _UNARY_OPS[op](arg.value)
+            LOG.info("opt: %s 0x%x -> 0x%x", op, arg.value, result)
+            return LarkToken('INTLIT', result)
+
+        return LarkTree('unary_expr', children)
 
 class Scope(object):
     """! @brief Debug sequence execution scope."""
@@ -263,6 +301,36 @@ class Scope(object):
         if is_ro:
             self._ro_variables.add(name)
 
+## Lambdas for evaluating binary operators.
+_BINARY_OPS = {
+    '+':    lambda l, r: l + r,
+    '-':    lambda l, r: l - r,
+    '*':    lambda l, r: l * r,
+    '/':    lambda l, r: l / r,
+    '%':    lambda l, r: l % r,
+    '&':    lambda l, r: l & r,
+    '|':    lambda l, r: l | r,
+    '^':    lambda l, r: l ^ r,
+    '<<':   lambda l, r: l << r,
+    '>>':   lambda l, r: l >> r,
+    '&&':   lambda l, r: int(l and r),
+    '||':   lambda l, r: int(l or r),
+    '==':   lambda l, r: int(l == r),
+    '!=':   lambda l, r: int(l != r),
+    '>':    lambda l, r: int(l > r),
+    '>=':   lambda l, r: int(l >= r),
+    '<':    lambda l, r: int(l < r),
+    '<=':   lambda l, r: int(l <= r),
+    }
+
+## Lambdas for evaluating unary operators.
+_UNARY_OPS = {
+    '~':    lambda v: bit_invert(v, width=64),
+    '!':    lambda v: int(not v),
+    '+':    lambda v: v,
+    '-':    lambda v: -v,
+    }
+
 class Interpreter(lark.visitors.Interpreter):
     """! @brief Visitor for interpreting sequence trees.
     
@@ -270,34 +338,6 @@ class Interpreter(lark.visitors.Interpreter):
     is required to handle crossing block/control boundaries.
     """
 
-    _BINARY_OPS = {
-        '+':    lambda l, r: l + r,
-        '-':    lambda l, r: l - r,
-        '*':    lambda l, r: l * r,
-        '/':    lambda l, r: l / r,
-        '%':    lambda l, r: l % r,
-        '&':    lambda l, r: l & r,
-        '|':    lambda l, r: l | r,
-        '^':    lambda l, r: l ^ r,
-        '<<':   lambda l, r: l << r,
-        '>>':   lambda l, r: l >> r,
-        '&&':   lambda l, r: int(l and r),
-        '||':   lambda l, r: int(l or r),
-        '==':   lambda l, r: int(l == r),
-        '!=':   lambda l, r: int(l != r),
-        '>':    lambda l, r: int(l > r),
-        '>=':   lambda l, r: int(l >= r),
-        '<':    lambda l, r: int(l < r),
-        '<=':   lambda l, r: int(l <= r),
-        }
-
-    _UNARY_OPS = {
-        '~':    lambda v: bit_invert(v, width=64),
-        '!':    lambda v: int(not v),
-        '+':    lambda v: v,
-        '-':    lambda v: -v,
-        }
-    
     def __init__(self, scope, delegate):
         super(Interpreter, self).__init__()
         self._scope = scope
@@ -351,7 +391,7 @@ class Interpreter(lark.visitors.Interpreter):
         op = values[1].value
         right = self._get_atom(values[2])
         
-        return self._BINARY_OPS[op](left, right)
+        return _BINARY_OPS[op](left, right)
     
     def unary_expr(self, tree):
         values = self.visit_children(tree)
@@ -360,7 +400,7 @@ class Interpreter(lark.visitors.Interpreter):
         op = values[0].value
         value = self._get_atom(values[1])
         
-        return self._UNARY_OPS[op](value)
+        return _UNARY_OPS[op](value)
     
     def fncall(self, tree):
         values = self.visit_children(tree)
