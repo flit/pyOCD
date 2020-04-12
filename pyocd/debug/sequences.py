@@ -148,11 +148,22 @@ class DebugSequence(DebugSequenceNode):
     def is_enabled(self):
         return self._is_enabled
     
-    def _create_scope(self, session, delegate):
-        scope = Scope()
-        scope.set('__dp', 0) # We only support one DP.
-        scope.set('__ap', 0)
-        scope.set('__errorcontrol', 0)
+    def _create_scope(self, session, delegate, parent_scope):
+        # Create special variables scope hierarchy.
+        if parent_scope:
+            # Create a child specials scope. If one of the special variables is modified, it
+            # will be written to this scope and shadow the one in the parent.
+            parent_specials = parent_scope.specials
+            specials = Scope(parent=parent_specials)
+        else:
+            # Create a fresh specials scope and populate it.
+            specials = Scope()
+            specials.set('__dp', 0) # We only support one DP.
+            specials.set('__ap', 0)
+            specials.set('__errorcontrol', 0)
+        
+        # Create the regular scope.
+        scope = Scope(parent=parent_scope, specials=specials)
         scope.set('__Result', 0)
         
         # Generate __protocol value.
@@ -177,9 +188,9 @@ class DebugSequence(DebugSequenceNode):
         scope.set('__FlashArg', 0, True)
         return scope
     
-    def execute(self, session, delegate):
+    def execute(self, session, delegate, parent_scope=None):
         """! @brief Run the sequence."""
-        scope = self._create_scope(session, delegate)
+        scope = self._create_scope(session, delegate, parent_scope)
         for node in self.children:
             node.execute(session, delegate, scope)
     
@@ -270,18 +281,63 @@ class ConstantFolder(lark.visitors.Transformer):
         return LarkTree('unary_expr', children)
 
 class Scope(object):
-    """! @brief Debug sequence execution scope."""
+    """! @brief Debug sequence execution scope.
     
-    def __init__(self, parent=None):
+    Scopes have both a link to a parent scope and a link to a "specials" scope. The former is used
+    to read regular variables defined in super-scopes. Writing a variable always sets it in the
+    scope to which it was written, which will shadow a variable with the same name in a parent
+    scope.
+    
+    The specials scope is for handling a small number of variables with special scoping rules by
+    definition (of debug sequences). These variables, listed in the _SPECIAL_VARS class attribute,
+    have only one copy per debug sequence. Reading or writing always accesses the same instance of
+    the variable regardless of how deep the scope stack is. However, these variables are stacked
+    when another debug sequence is called. Thus, the specials scopes also use the parent link.
+    """
+    
+    ## Special variables that don't follow the scoping rules.
+    #
+    # These variables are always accessed from the specials scope.
+    _SPECIAL_VARS = ['__dp', '__ap', '__errorcontrol']
+    
+    def __init__(self, parent=None, specials=None):
+        """! @brief Constructor.
+        @param self The Scope object.
+        @param parent Optional parent scope reference. If not provided or set to None, the new scope
+            becomes a root.
+        @param specials Optional specials scope reference. If not provided or set to None, and a
+            parent was provided, then the specials scope from the parent is used.
+        """
         self._parent = parent
+        self._specials = specials
         self._variables = {} # Map from name: value.
-        self._ro_variables = set() # A variable is read-only if its name is in this set.
+        # A variable is read-only if its name is in this set. Start off with
+        self._ro_variables = set()
+
+        # Find the specials scope. Get it from our parent if not provided directly.
+        if (self._specials is None) and (self._parent is not None):
+            self._specials = self._parent._specials
     
     @property
     def parent(self):
+        """! @brief Parent scope.
+        
+        The parent of the root scope is None.
+        """
         return self._parent
+
+    @property
+    def specials(self):
+        """! @brief The specials scope."""
+        return self._specials
     
     def get(self, name):
+        """! @brief Read a variable."""
+        # Handle specially scoped variables.
+        if self._specials and (name in self._SPECIAL_VARS):
+            LOG.info("get special '%s'", name)
+            return self._specials.get(name)
+
         try:
             value = self._variables[name]
         except KeyError:
@@ -293,13 +349,35 @@ class Scope(object):
         return value
     
     def set(self, name, value, is_ro=False):
+        """! @brief Write a variable."""
+        # Handle specially scoped variables.
+        if self._specials and (name in self._SPECIAL_VARS):
+            LOG.info("set special '%s'", name)
+            self._specials.set(name, value, is_ro)
+        
         LOG.info("set '%s' <- 0x%016x", name, value)
         # Catch attempt to rewrite a read-only variable.
-        if (name in self._variables) and (name in self._ro_variables):
+        if self._is_read_only(name):
             raise RuntimeError("attempt to modify read-only variable '%s'" % name)
+        
+        # Set the variable.
         self._variables[name] = value
         if is_ro:
             self._ro_variables.add(name)
+    
+    def _is_read_only(self, name):
+        """! @brief Returns a boolean for whether the named variable is read-only.
+        
+        First checks the called scope. If the variable isn't found to be read-only, it asks the
+        parent. Thus, once a variable is marked as read-only, it remains read-only in all child
+        scopes.
+        """
+        if name in self._ro_variables:
+            return True
+        elif self.parent is not None:
+            return self.parent._is_read_only(name)
+        else:
+            return False
 
 ## Lambdas for evaluating binary operators.
 _BINARY_OPS = {
