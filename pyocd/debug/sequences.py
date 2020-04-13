@@ -207,16 +207,29 @@ class Control(DebugSequenceNode):
     def __init__(self, control_type, predicate, info=""):
         super(Control, self).__init__(info)
         self._type = control_type
-        self._predicate = predicate
         self._ast = Parser.parse(predicate)
     
     def execute(self, session, delegate, parent_scope):
         """! @brief Run the sequence."""
         scope = Scope(parent_scope)
         interp = Interpreter(scope, delegate)
-        interp.start(self._ast)
-        for node in self.children:
-            node.execute(session, delegate, scope)
+        
+        # Execute the predicate a first time.
+        result = interp.visit(self._ast)
+        LOG.info("control(%s): pred=%s", self._type.name, result)
+        
+        while result:
+            # Execute all child nodes.
+            for node in self.children:
+                node.execute(session, delegate, scope)
+
+            # For an if control, we're done.
+            if self._type == self.ControlType.IF:
+                break
+            # For a while control, re-evaluate the predicate.
+            elif self._type == self.ControlType.WHILE:
+                result = interp.visit(self._ast)
+                LOG.info("control(%s): pred=%d", self._type.name, result)
     
     def __repr__(self):
         return "<{}:{:x} {}>".format(self.__class__.__name__, id(self),
@@ -239,13 +252,12 @@ class Block(DebugSequenceNode):
 
     def __init__(self, code, info=""):
         super(Block, self).__init__(info)
-        self._code = code
         self._ast = Parser.parse(code)
     
     def execute(self, session, delegate, scope):
         """! @brief Run the sequence."""
         interp = Interpreter(scope, delegate)
-        interp.start(self._ast)
+        interp.visit(self._ast)
     
     def __repr__(self):
         return "<{}:{:x} {}>".format(self.__class__.__name__, id(self),
@@ -391,8 +403,8 @@ _BINARY_OPS = {
     '^':    lambda l, r: l ^ r,
     '<<':   lambda l, r: l << r,
     '>>':   lambda l, r: l >> r,
-    '&&':   lambda l, r: int(l and r),
-    '||':   lambda l, r: int(l or r),
+    '&&':   lambda l, r: bool(l) & bool(r), # implement C-style AND
+    '||':   lambda l, r: bool(l) | bool(r), # implement C-style OR
     '==':   lambda l, r: int(l == r),
     '!=':   lambda l, r: int(l != r),
     '>':    lambda l, r: int(l > r),
@@ -422,7 +434,9 @@ class Interpreter(lark.visitors.Interpreter):
         self._delegate = delegate
     
     def start(self, tree):
-        self.visit_children(tree)
+        values = self.visit_children(tree)
+        LOG.info("%s values=%s", tree.data, values)
+        return values.pop() if len(values) else None
         
     def _log_children(self, name, children):
         LOG.info('%s: %s', name, [(("Node: %s" % c.data) if hasattr(c, 'data') else ("%s=%s" % (c.type, c.value))) for c in children])
@@ -431,7 +445,6 @@ class Interpreter(lark.visitors.Interpreter):
         self._log_children(tree.data + ' before visit', tree.children)
         values = self.visit_children(tree)
         LOG.info("%s values=%s", tree.data, values)
-#         self._log_children(tree.data + ' after visit', tree.children)
         
         assert isinstance(values[0], LarkToken) and values[0].type == 'IDENT'
         name = values[0].value
@@ -458,7 +471,9 @@ class Interpreter(lark.visitors.Interpreter):
     
     def expr_stmt(self, tree):
         self._log_children(tree.data, tree.children)
-        self.visit_children(tree)
+        values = self.visit_children(tree)
+        LOG.info("%s values=%s", tree.data, values)
+        return values.pop()
     
     def binary_expr(self, tree):
         self._log_children(tree.data + ' before visit', tree.children)
