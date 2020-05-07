@@ -20,6 +20,7 @@ from enum import Enum
 
 # CPUID PARTNO values
 ARM_SC000 = 0xC30
+ARM_SC300 = 0xC33
 ARM_CortexM0 = 0xC20
 ARM_CortexM1 = 0xC21
 ARM_CortexM3 = 0xC23
@@ -28,6 +29,7 @@ ARM_CortexM7 = 0xC27
 ARM_CortexM0p = 0xC60
 ARM_CortexM23 = 0xD20
 ARM_CortexM33 = 0xD21
+ARM_CortexM35P = 0xD31
 ARM_CortexM55 = 0xD22
 
 # pylint: enable=invalid_name
@@ -35,6 +37,7 @@ ARM_CortexM55 = 0xD22
 ## @brief User-friendly names for core types.
 CORE_TYPE_NAME = {
                  ARM_SC000 : "SecurCore SC000",
+                 ARM_SC300 : "SecurCore SC300",
                  ARM_CortexM0 : "Cortex-M0",
                  ARM_CortexM1 : "Cortex-M1",
                  ARM_CortexM3 : "Cortex-M3",
@@ -43,6 +46,7 @@ CORE_TYPE_NAME = {
                  ARM_CortexM0p : "Cortex-M0+",
                  ARM_CortexM23 : "Cortex-M23",
                  ARM_CortexM33 : "Cortex-M33",
+                 ARM_CortexM35P : "Cortex-M35P",
                  ARM_CortexM55 : "Cortex-M55",
                }
 
