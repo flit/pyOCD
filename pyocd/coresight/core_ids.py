@@ -19,6 +19,7 @@ from enum import Enum
 # pylint: disable=invalid_name
 
 # CPUID PARTNO values
+ARM_SC000 = 0xC30
 ARM_CortexM0 = 0xC20
 ARM_CortexM1 = 0xC21
 ARM_CortexM3 = 0xC23
@@ -33,6 +34,7 @@ ARM_CortexM55 = 0xD22
 
 ## @brief User-friendly names for core types.
 CORE_TYPE_NAME = {
+                 ARM_SC000 : "SecurCore SC000",
                  ARM_CortexM0 : "Cortex-M0",
                  ARM_CortexM1 : "Cortex-M1",
                  ARM_CortexM3 : "Cortex-M3",
