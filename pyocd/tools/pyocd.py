@@ -182,17 +182,23 @@ COMMAND_INFO = {
         'read8' : {
             'aliases' : ['read', 'r', 'rb'],
             'args' : "ADDR [LEN]",
-            'help' : "Read 8-bit bytes"
+            'help' : "Read 8-bit bytes",
+            "extra_help" : "Optional length parameter is the number of bytes to read. If the "
+                           "length is not provided, one byte is read."
             },
         'read16' : {
             'aliases' : ['r16', 'rh'],
             'args' : "ADDR [LEN]",
-            'help' : "Read 16-bit halfwords"
+            'help' : "Read 16-bit halfwords",
+            "extra_help" : "Optional length parameter is the number of bytes to read. It must be "
+                           "divisible by 2. If the length is not provided, one halfword is read."
             },
         'read32' : {
             'aliases' : ['r32', 'rw'],
             'args' : "ADDR [LEN]",
-            'help' : "Read 32-bit words"
+            'help' : "Read 32-bit words",
+            "extra_help" : "Optional length parameter is the number of bytes to read. It must be "
+                           "divisible by 4. If the length is not provided, one word is read."
             },
         'write8' : {
             'aliases' : ['write', 'w', 'wb'],
@@ -1243,6 +1249,10 @@ class PyOCDCommander(object):
             count = width // 8
         else:
             count = self.convert_value(args[1])
+        
+        if (count % width) != 0:
+            print("Error: length ({}) is not aligned to width ({})".format(count, width))
+            return 1
 
         if width == 8:
             data = self.target.aps[self.selected_ap].read_memory_block8(addr, count)
