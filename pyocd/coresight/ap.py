@@ -464,8 +464,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     - Barrier Operation Extension
     """
 
-    def __init__(self, dp, ap_address, idr=None, name="", flags=0):
-        super(MEM_AP, self).__init__(dp, ap_address, idr, name, flags)
+    def __init__(self, dp, ap_address, idr=None, name="", flags=0, cmpid=None):
+        super(MEM_AP, self).__init__(dp, ap_address, idr, name, flags, cmpid)
         
         # Check AP version and set the offset to the control and status registers.
         if self.ap_version == APVersion.APv1:
