@@ -988,7 +988,8 @@ class AHB_AP(MEM_AP):
     def init(self):
         super(AHB_AP, self).init()
 
-        if self.ap_version == APVersion.APv1:
+        if (self.ap_version == APVersion.APv1) \
+                or ((self._cmpid is not None) and (self._cmpid.archid == UNKNOWN_AP_ARCHID)):
             self._init_mstrtype()
         
     def _init_mstrtype(self):
