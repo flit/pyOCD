@@ -1250,8 +1250,8 @@ class PyOCDCommander(object):
         else:
             count = self.convert_value(args[1])
         
-        if (count % width) != 0:
-            print("Error: length ({}) is not aligned to width ({})".format(count, width))
+        if (count % (width // 8)) != 0:
+            print("Error: length ({}) is not aligned to width ({})".format(count, width // 8))
             return 1
 
         if width == 8:
