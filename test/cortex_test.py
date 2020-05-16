@@ -577,6 +577,27 @@ def cortex_test(board_id):
             print("TEST PASSED")
         else:
             print("TEST FAILED")
+        
+        print("\n\n------ Test get_halt_reason ------")
+        target.reset()
+        print("Get halt reason while running")
+        reason = target.get_halt_reason()
+        if reason is None:
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+        test_count += 1
+        
+        print("Get halt reason when stopped by debugger")
+        target.halt()
+        reason = target.get_halt_reason()
+        if reason == Target.HaltReason.DEBUG:
+            test_pass_count += 1
+            print("TEST PASSED")
+        else:
+            print("TEST FAILED")
+        test_count += 1
 
         print("\nTest Summary:")
         print("Pass count %i of %i tests" % (test_pass_count, test_count))
