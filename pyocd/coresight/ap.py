@@ -37,6 +37,7 @@ A32 = 0x0c
 APSEL_SHIFT = 24
 APSEL = 0xff000000
 APBANKSEL = 0x000000f0
+APSEL_APBANKSEL = APSEL | APBANKSEL
 
 ## @brief Mask for register address within the AP address space.
 #

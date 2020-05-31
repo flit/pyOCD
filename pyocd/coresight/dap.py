@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ from enum import Enum
 from ..core import (exceptions, memory_interface)
 from ..probe.debug_probe import DebugProbe
 from ..probe.swj import SWJSequenceSender
-from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APREG_MASK, AccessPort)
+from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APSEL_APBANKSEL, APREG_MASK, AccessPort)
 from ..utility.sequencer import CallSequence
 from ..utility.timeout import Timeout
 
@@ -49,8 +49,8 @@ DP_RDBUFF = 0xC # read-only
 # Mask and shift for extracting DPBANKSEL from our DP register address constants. These are not
 # related to the SELECT.DPBANKSEL bitfield.
 DPADDR_MASK = 0x0f
-DPBANKSEL_MASK = 0xf0
-DPBANKSEL_SHIFT = 4
+DPADDR_DPBANKSEL_MASK = 0xf0
+DPADDR_DPBANKSEL_SHIFT = 4
 
 DPIDR1_ASIZE_MASK = 0x00000007f
 DPIDR1_ERRMODE_MASK = 0x00000080
@@ -73,7 +73,9 @@ CTRLSTAT_STICKYERR = 0x00000020
 CTRLSTAT_READOK = 0x00000040
 CTRLSTAT_WDATAERR = 0x00000080
 
+# DP SELECT register fields.
 SELECT_DPBANKSEL_MASK = 0x0000000f
+SELECT_APADDR_MASK = 0xfffffff0
 
 DPIDR_REVISION_MASK = 0xf0000000
 DPIDR_REVISION_SHIFT = 28
@@ -206,8 +208,11 @@ class DebugPort(object):
         self.dpidr = None
         self.aps = {}
         self._access_number = 0
-        self._cached_dpbanksel = None
+        self._cached_dp_select = None
         self._protocol = None
+        self._probe_managed_ap_select = False
+        self._probe_managed_dpbanksel = False
+        self._probe_supports_dpbanksel = False
         
         # DPv3 attributes
         self._is_dpv3 = False
@@ -245,7 +250,8 @@ class DebugPort(object):
     def init(self, protocol=None):
         """! @brief Connect to the target.
         
-        This method causes the debug probe to connect using the selected wire protocol.
+        This method causes the debug probe to connect using the selected wire protocol. The probe
+        must have already been opened prior to this call.
         
         Unlike init_sequence(), this method is intended to be used when manually constructing a
         DebugPort instance. It simply calls init_sequence() and invokes the returned call sequence.
@@ -264,14 +270,24 @@ class DebugPort(object):
         DP, power up debug and the system, check the DP version to identify whether the target uses
         ADI v5 or v6, then clears sticky errors.
         
+        The probe must have already been opened prior to this method being called.
+        
         @param self
         """
         return CallSequence(
+            ('get_probe_capabilities', self._get_probe_capabilities),
             ('connect',             self._connect),
             ('clear_sticky_err',    self.clear_sticky_err),
             ('power_up_debug',      self.power_up_debug),
             ('check_version',       self._check_version),
             )
+
+    def _get_probe_capabilities(self):
+        """! @brief Examine the probe's capabilities."""
+        caps = self._probe.capabilities
+        self._probe_managed_ap_select = (DebugProbe.Capability.MANAGED_AP_SELECTION in caps)
+        self._probe_managed_dpbanksel = (DebugProbe.Capability.MANAGED_DPBANKSEL in caps)
+        self._probe_supports_dpbanksel = (DebugProbe.Capability.BANKED_DP_REGISTERS in caps)
 
     def _connect(self):
         # Attempt to connect.
@@ -381,13 +397,13 @@ class DebugPort(object):
         return True
 
     def reset(self):
-        self._cached_dpbanksel = None
+        self._cached_dp_select = None
         for ap in self.aps.values():
             ap.reset_did_occur()
         self.probe.reset()
 
     def assert_reset(self, asserted):
-        self._cached_dpbanksel = None
+        self._cached_dp_select = None
         if asserted:
             for ap in self.aps.values():
                 ap.reset_did_occur()
@@ -399,16 +415,37 @@ class DebugPort(object):
     def set_clock(self, frequency):
         self.probe.set_clock(frequency)
 
+    def _write_dp_select(self, mask, value):
+        """! @brief Modify part of the DP SELECT register and write if cache is stale."""
+        # Compute the new SELECT value and see if we need to write it.
+        if self._cached_dp_select is None:
+            select = value
+        else:
+            select = (self._cached_dp_select & ~mask) | value
+            if select == self._cached_dp_select:
+                return
+        
+        # Update the SELECT register and cache.
+        self.write_dp(DP_SELECT, select)
+        self._cached_dp_select = select
+    
     def _set_dpbanksel(self, addr):
-        # SELECT and RDBUFF ignore DPBANKSEL.
+        # SELECT and RDBUFF ignore DPBANKSEL for both reads and writes.
         if (addr & DPADDR_MASK) not in (DP_SELECT, DP_RDBUFF):
-            # Make sure the correct DP bank is selected.
-            dpbanksel = addr & DPBANKSEL_MASK
-            if dpbanksel != self._cached_dpbanksel:
-                # Blow away any selected AP.
-                select = dpbanksel >> DPBANKSEL_SHIFT
-                self.write_dp(DP_SELECT, select)
-                self._cached_dpbanksel = dpbanksel
+            # Get the DP bank.
+            dpbanksel = (addr & DPADDR_DPBANKSEL_MASK) >> DPADDR_DPBANKSEL_SHIFT
+            
+            # Check if the probe handles this for us.
+            if self._probe_managed_dpbanksel:
+                # If there is a nonzero DPBANKSEL and the probe doesn't support this,
+                # then report an error.
+                if dpbanksel and not self._probe_supports_dpbanksel:
+                    raise exceptions.ProbeError("probe does not support banked DP registers")
+                else:
+                    return
+            
+            # Update the selecged DP bank.
+            self._write_dp_select(SELECT_DPBANKSEL_MASK, dpbanksel)
 
     def read_dp(self, addr, now=True):
         num = self.next_access_number
@@ -453,12 +490,27 @@ class DebugPort(object):
             raise
 
         return True
+    
+    def _select_ap(self, addr):
+        """! @brief Write DP_SELECT to choose the given AP."""
+        # If the probe handles selecting the AP for us, there's nothing to do here.
+        if self._probe_managed_ap_select:
+            return
+        
+        # Write DP SELECT to select the probe.
+        if self.adi_version == ADIVersion.ADIv5:
+            self._write_dp_select(APSEL_APBANKSEL, addr & APSEL_APBANKSEL)
+        elif self.adi_version == ADIVersion.ADIv6:
+            self._write_dp_select(SELECT_APADDR_MASK, addr & SELECT_APADDR_MASK)
+        else:
+            raise RuntimeError("unknown ADI version")
 
     def write_ap(self, addr, data):
         assert type(addr) in (six.integer_types)
         num = self.next_access_number
 
         try:
+            self._select_ap(addr)
             TRACE.debug("write_ap:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.probe.write_ap(addr, data)
         except exceptions.TargetError as error:
@@ -472,6 +524,7 @@ class DebugPort(object):
         num = self.next_access_number
 
         try:
+            self._select_ap(addr)
             result_cb = self.probe.read_ap(addr, now=False)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
@@ -503,7 +556,7 @@ class DebugPort(object):
             self.write_reg(DP_ABORT, ABORT_DAPABORT)
 
     def clear_sticky_err(self):
-        self._cached_dpbanksel = None
+        self._cached_dp_select = None
         mode = self.probe.wire_protocol
         if mode == DebugProbe.Protocol.SWD:
             self.write_reg(DP_ABORT, ABORT_ORUNERRCLR | ABORT_WDERRCLR | ABORT_STKERRCLR | ABORT_STKCMPCLR)
