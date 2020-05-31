@@ -117,7 +117,11 @@ class StlinkProbe(DebugProbe):
         self._is_open = True
         
         # Update capabilities.
-        self._caps = {self.Capability.SWO}
+        self._caps = {
+                self.Capability.SWO,
+                self.Capability.MANAGED_AP_SELECTION,
+                self.Capability.MANAGED_DPBANKSEL,
+                }
         if self._link.supports_banked_dp:
             self._caps.add(self.Capability.BANKED_DP_REGISTERS)
     

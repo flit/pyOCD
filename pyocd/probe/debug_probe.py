@@ -48,6 +48,15 @@ class DebugProbe(object):
         
         ## @brief Whether the probe can access APv2 registers.
         APv2_ADDRESSES = 3
+        
+        ## @brief Whether the probe automatically handles AP selection in the DP.
+        #
+        # If this capability is not present, the DebugPort object will perform the AP selection
+        # by DP register writes.
+        MANAGED_AP_SELECTION = 4
+        
+        ## @brief whether the probe automatically handles access of banked DAP registers.
+        MANAGED_DPBANKSEL = 5
     
     @classmethod
     def get_all_connected_probes(cls):
