@@ -879,11 +879,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         else:
             return read_mem_cb
 
-    @locked
-    def _write_block32(self, addr, data):
+    def _write_block32_page(self, addr, data):
         """! @brief Write a single transaction's worth of aligned words.
         
         The transaction must not cross the MEM-AP's auto-increment boundary.
+
+        This method is not locked because it is only called by _write_memory_block32(), which is locked.
         """
         assert (addr & 0x3) == 0
         num = self.dp.next_access_number
@@ -905,11 +906,12 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             raise
         TRACE.debug("_write_block32:%06d }", num)
 
-    @locked
-    def _read_block32(self, addr, size):
+    def _read_block32_page(self, addr, size):
         """! @brief Read a single transaction's worth of aligned words.
         
         The transaction must not cross the MEM-AP's auto-increment boundary.
+
+        This method is not locked because it is only called by _read_memory_block32(), which is locked.
         """
         assert (addr & 0x3) == 0
         num = self.dp.next_access_number
@@ -941,7 +943,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
             if size*4 < n:
                 n = (size*4) & 0xfffffffc
-            self._write_block32(addr, data[:n//4])
+            self._write_block32_page(addr, data[:n//4])
             data = data[n//4:]
             size -= n//4
             addr += n
@@ -951,7 +953,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
     def _read_memory_block32(self, addr, size):
         """! @brief Read a block of aligned words in memory.
         
-        @return An array of word values
+        @return A list of word values.
         """
         assert (addr & 0x3) == 0
         resp = []
@@ -959,7 +961,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             n = self.auto_increment_page_size - (addr & (self.auto_increment_page_size - 1))
             if size*4 < n:
                 n = (size*4) & 0xfffffffc
-            resp += self._read_block32(addr, n//4)
+            resp += self._read_block32_page(addr, n//4)
             size -= n//4
             addr += n
         return resp
