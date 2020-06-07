@@ -88,9 +88,6 @@ def concurrency_test(board_id):
         
         target.reset_and_halt()
         
-        # Reproduce a gdbserver failure.
-        print("\n------ Test 1: Concurrent memory reads ------")
-        
         # Prepare TEST_THREAD_COUNT regions of RAM with patterns
         data_len = min(TEST_MAX_LENGTH, ram_region.length)
         chunk_len = data_len // TEST_THREAD_COUNT
@@ -99,26 +96,33 @@ def concurrency_test(board_id):
         for i in range(TEST_THREAD_COUNT):
             chunk_data.append([(i + j) % 256 for j in range(chunk_len)])
         
-        # Write chunk patterns concurrently.
-        print("Writing %i regions to RAM" % TEST_THREAD_COUNT)
-        def write_chunk_data(i):
+        def write_chunk_data(core, i):
             start = ram_region.start + chunk_len * i
             end = start + chunk_len - 1
             print("Writing region %i from %#010x to %#010x" % (i, start, end))
-            target.write_memory_block8(start, chunk_data[i])
+            core.write_memory_block8(start, chunk_data[i])
             print("Finished writing region %i" % (i))
-        run_in_parallel(write_chunk_data, [[i] for i in range(TEST_THREAD_COUNT)])
-        
-        print("Reading %i regions to RAM" % TEST_THREAD_COUNT)
-        chunk_read_data = [list() for i in range(TEST_THREAD_COUNT)] # [[]] * TEST_THREAD_COUNT
-        def read_chunk_data(i):
+
+        def read_chunk_data(core, i):
             start = ram_region.start + chunk_len * i
             end = start + chunk_len - 1
             print("Reading region %i from %#010x to %#010x" % (i, start, end))
-            data = target.read_memory_block8(start, chunk_len)
+            core = ap.read_memory_block8(start, chunk_len)
             chunk_read_data[i].extend(data)
             print("Finished reading region %i" % (i))
-        run_in_parallel(read_chunk_data, [[i] for i in range(TEST_THREAD_COUNT)])
+        
+        # Test with a single core/AP.
+        print("\n------ Test 1: Concurrent memory accesses, single core ------")
+        
+        core = target.cores[0]
+
+        # Write chunk patterns concurrently.
+        print("Writing %i regions to RAM" % TEST_THREAD_COUNT)
+        run_in_parallel(write_chunk_data, [[core, i] for i in range(TEST_THREAD_COUNT)])
+        
+        print("Reading %i regions to RAM" % TEST_THREAD_COUNT)
+        chunk_read_data = [list() for i in range(TEST_THREAD_COUNT)]
+        run_in_parallel(read_chunk_data, [[core, i] for i in range(TEST_THREAD_COUNT)])
         
         print("Comparing data")
         
@@ -129,6 +133,28 @@ def concurrency_test(board_id):
                 print("Region %i PASSED" % i)
             else:
                 print("Region %i FAILED" % i)
+        
+        # Test with a multiple cores/APs.
+        if len(target.cores) > 1:
+            print("\n------ Test 2: Concurrent memory accesses, multiple cores ------")
+
+            # Write chunk patterns concurrently.
+            print("Writing %i regions to RAM" % TEST_THREAD_COUNT)
+            run_in_parallel(write_chunk_data, [[c, i] for c, i in zip(target.cores, range(TEST_THREAD_COUNT))])
+        
+            print("Reading %i regions to RAM" % TEST_THREAD_COUNT)
+            chunk_read_data = [list() for i in range(TEST_THREAD_COUNT)]
+            run_in_parallel(read_chunk_data, [[c, i] for c, i in zip(target.cores, range(TEST_THREAD_COUNT))])
+        
+            print("Comparing data")
+        
+            for i in range(TEST_THREAD_COUNT):
+                test_count += 1
+                if same(chunk_read_data[i], chunk_data[i]):
+                    test_pass_count += 1
+                    print("Region %i PASSED" % i)
+                else:
+                    print("Region %i FAILED" % i)
 
         # --- end ---
         print("\nTest Summary:")
