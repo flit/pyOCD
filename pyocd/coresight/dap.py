@@ -493,6 +493,7 @@ class DebugPort(object):
                 TRACE.debug("read_dp:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
                 return result
             except exceptions.TargetError as error:
+                TRACE.debug("read_dp:%06d %s(addr=0x%08x) -> error (%s)", num, "" if now else "...", addr, error)
                 self._handle_error(error, num)
                 raise
             finally:
@@ -582,6 +583,7 @@ class DebugPort(object):
                 TRACE.debug("read_ap:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
                 return result
             except exceptions.TargetError as error:
+                TRACE.debug("read_ap:%06d %s(addr=0x%08x) -> error (%s)", num, "" if now else "...", addr, error)
                 self._handle_error(error, num)
                 raise
             finally:
@@ -593,6 +595,51 @@ class DebugPort(object):
         else:
             TRACE.debug("read_ap:%06d (addr=0x%08x) -> ...", num, addr)
             return read_ap_cb
+
+    def write_ap_multiple(self, addr, values):
+        assert type(addr) in (six.integer_types)
+        num = self.next_access_number
+        
+        try:
+            did_lock = self._select_ap(addr)
+            TRACE.debug("write_ap_multiple:%06d (addr=0x%08x) = (%i values)", num, addr, len(values))
+            return self.probe.write_ap_multiple(addr, values)
+        except exceptions.TargetError as error:
+            self._handle_error(error, num)
+            if did_lock:
+                self._cached_dp_select.release_for_value()
+            raise
+
+    def read_ap_multiple(self, addr, count=1, now=True):
+        assert type(addr) in (six.integer_types)
+        num = self.next_access_number
+        
+        try:
+            did_lock = self._select_ap(addr)
+            TRACE.debug("read_ap_multiple:%06d (addr=0x%08x, count=%i)", num, addr, count)
+            result_cb = self.probe.read_ap_multiple(addr, count, now=now)
+        except exceptions.TargetError as error:
+            self._handle_error(error, num)
+            if did_lock:
+                self._cached_dp_select.release_for_value()
+            raise
+
+        # Need to wrap the deferred callback to convert exceptions.
+        def read_ap_multiple_cb():
+            try:
+                return result_cb()
+            except exceptions.TargetError as error:
+                TRACE.debug("read_ap_multiple:%06d %s(addr=0x%08x) -> error (%s)", num, "" if now else "...", addr, error)
+                self._handle_error(error, num)
+                raise
+            finally:
+                if did_lock:
+                    self._cached_dp_select.release_for_value()
+
+        if now:
+            return read_ap_multiple_cb()
+        else:
+            return read_ap_multiple_cb
 
     def _handle_error(self, error, num):
         TRACE.debug("error:%06d %s", num, error)
