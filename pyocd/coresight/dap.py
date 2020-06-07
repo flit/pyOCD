@@ -428,7 +428,7 @@ class DebugPort(object):
         def _set_select(value):
             self.write_dp(DP_SELECT, value)
             
-        self._cached_dp_select.acquire_for_value(select)
+        self._cached_dp_select.acquire_for_value(select, _set_select)
     
     def _set_dpbanksel(self, addr, is_write):
         """! @brief Updates the DPBANKSEL field of the SELECT register as required.
