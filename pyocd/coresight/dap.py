@@ -25,6 +25,7 @@ from ..probe.swj import SWJSequenceSender
 from .ap import (MEM_AP_CSW, APSEL, APBANKSEL, APSEL_APBANKSEL, APREG_MASK, AccessPort)
 from ..utility.sequencer import CallSequence
 from ..utility.timeout import Timeout
+from ..utility.concurrency import RWValueLock
 
 LOG = logging.getLogger(__name__)
 
@@ -208,7 +209,7 @@ class DebugPort(object):
         self.dpidr = None
         self.aps = {}
         self._access_number = 0
-        self._cached_dp_select = None
+        self._cached_dp_select = RWValueLock()
         self._protocol = None
         self._probe_managed_ap_select = False
         self._probe_managed_dpbanksel = False
@@ -397,13 +398,13 @@ class DebugPort(object):
         return True
 
     def reset(self):
-        self._cached_dp_select = None
+        self._cached_dp_select.clear()
         for ap in self.aps.values():
             ap.reset_did_occur()
         self.probe.reset()
 
     def assert_reset(self, asserted):
-        self._cached_dp_select = None
+        self._cached_dp_select.clear()
         if asserted:
             for ap in self.aps.values():
                 ap.reset_did_occur()
@@ -418,20 +419,41 @@ class DebugPort(object):
     def _write_dp_select(self, mask, value):
         """! @brief Modify part of the DP SELECT register and write if cache is stale."""
         # Compute the new SELECT value and see if we need to write it.
-        if self._cached_dp_select is None:
+        if self._cached_dp_select.value is None:
             select = value
         else:
-            select = (self._cached_dp_select & ~mask) | value
-            if select == self._cached_dp_select:
-                return
+            select = (self._cached_dp_select.value & ~mask) | value
         
         # Update the SELECT register and cache.
-        self.write_dp(DP_SELECT, select)
-        self._cached_dp_select = select
+        def _set_select(value):
+            self.write_dp(DP_SELECT, value)
+            
+        self._cached_dp_select.acquire_for_value(select)
     
-    def _set_dpbanksel(self, addr):
-        # SELECT and RDBUFF ignore DPBANKSEL for both reads and writes.
-        if (addr & DPADDR_MASK) not in (DP_SELECT, DP_RDBUFF):
+    def _set_dpbanksel(self, addr, is_write):
+        """! @brief Updates the DPBANKSEL field of the SELECT register as required.
+        
+        Several DP registers (most, actually) ignore DPBANKSEL. If one of those is being
+        accessed, any value of DPBANKSEL can be used. Otherwise SELECT is updated if necessary
+        and a lock acquired so another thread doesn't change DPBANKSEL until thsi transaction is
+        complete.
+        
+        This method also handles the case where the debug probe manages DPBANKSEL on its own,
+        such as with STLink.
+        
+        @return Whether the lock on the cached SELECT was acquired.
+        @exception exceptions.ProbeError Raised when a banked register is being accessed but the
+            probe doesn't support DPBANKSEL.
+        """
+        # For DPv1-2, only address 0x4 (CTRL/STAT) honours DPBANKSEL.
+        # For DPv3, SELECT and RDBUFF ignore DPBANKSEL for both reads and writes, while
+        # ABORT ignores it only for writes (address 0 for reads is IDR).
+        if self._is_dpv3 and not is_write:
+            registers_ignoring_dpbanksel = (DP_SELECT, DP_RDBUFF)
+        else:
+            registers_ignoring_dpbanksel = (DP_ABORT, DP_SELECT, DP_RDBUFF)
+        
+        if (addr & DPADDR_MASK) not in registers_ignoring_dpbanksel:
             # Get the DP bank.
             dpbanksel = (addr & DPADDR_DPBANKSEL_MASK) >> DPADDR_DPBANKSEL_SHIFT
             
@@ -442,20 +464,26 @@ class DebugPort(object):
                 if dpbanksel and not self._probe_supports_dpbanksel:
                     raise exceptions.ProbeError("probe does not support banked DP registers")
                 else:
-                    return
+                    return False
             
-            # Update the selecged DP bank.
+            # Update the selected DP bank.
             self._write_dp_select(SELECT_DPBANKSEL_MASK, dpbanksel)
+            return True
+        else:
+            return False
 
     def read_dp(self, addr, now=True):
         num = self.next_access_number
         
-        self._set_dpbanksel(addr)
+        # Update DPBANKSEL if required and obtain a lock on it.
+        did_lock = self._set_dpbanksel(addr, False)
 
         try:
             result_cb = self.probe.read_dp(addr & DPADDR_MASK, now=False)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
+            if did_lock:
+                self._cached_dp_select.release_for_value()
             raise
 
         # Read callback returned for async reads.
@@ -467,6 +495,9 @@ class DebugPort(object):
             except exceptions.TargetError as error:
                 self._handle_error(error, num)
                 raise
+            finally:
+                if did_lock:
+                    self._cached_dp_select.release_for_value()
 
         if now:
             return read_dp_cb()
@@ -477,9 +508,8 @@ class DebugPort(object):
     def write_dp(self, addr, data):
         num = self.next_access_number
         
-        # Writing to ABORT ignores DPBANKSEL.
-        if (addr & DPADDR_MASK) != DP_ABORT:
-            self._set_dpbanksel(addr)
+        # Update DPBANKSEL if required and obtain a lock on it.
+        did_lock = self._set_dpbanksel(addr, True)
 
         # Write the DP register.
         try:
@@ -488,14 +518,23 @@ class DebugPort(object):
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
+        finally:
+            if did_lock:
+                self._cached_dp_select.release_for_value()
 
         return True
     
     def _select_ap(self, addr):
-        """! @brief Write DP_SELECT to choose the given AP."""
+        """! @brief Write DP_SELECT to choose the given AP.
+        
+        Handles the case where the debug probe manages selecting an AP itself, in which case we
+        never write SELECT directly.
+
+        @return Whether the lock on the cached SELECT was acquired.
+        """
         # If the probe handles selecting the AP for us, there's nothing to do here.
         if self._probe_managed_ap_select:
-            return
+            return False
         
         # Write DP SELECT to select the probe.
         if self.adi_version == ADIVersion.ADIv5:
@@ -503,19 +542,23 @@ class DebugPort(object):
         elif self.adi_version == ADIVersion.ADIv6:
             self._write_dp_select(SELECT_APADDR_MASK, addr & SELECT_APADDR_MASK)
         else:
-            raise RuntimeError("unknown ADI version")
+            assert False, "invalid ADI version"
+        return True
 
     def write_ap(self, addr, data):
         assert type(addr) in (six.integer_types)
         num = self.next_access_number
 
         try:
-            self._select_ap(addr)
+            did_lock = self._select_ap(addr)
             TRACE.debug("write_ap:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.probe.write_ap(addr, data)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
+        finally:
+            if did_lock:
+                self._cached_dp_select.release_for_value()
 
         return True
 
@@ -524,10 +567,12 @@ class DebugPort(object):
         num = self.next_access_number
 
         try:
-            self._select_ap(addr)
+            did_lock = self._select_ap(addr)
             result_cb = self.probe.read_ap(addr, now=False)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
+            if did_lock:
+                self._cached_dp_select.release_for_value()
             raise
 
         # Read callback returned for async reads.
@@ -539,6 +584,9 @@ class DebugPort(object):
             except exceptions.TargetError as error:
                 self._handle_error(error, num)
                 raise
+            finally:
+                if did_lock:
+                    self._cached_dp_select.release_for_value()
 
         if now:
             return read_ap_cb()
@@ -553,15 +601,18 @@ class DebugPort(object):
             self.clear_sticky_err()
         # For timeouts caused by WAIT responses, set DAPABORT to abort the transfer.
         elif isinstance(error, exceptions.TransferTimeoutError):
+            # This may put the AP that was aborted into an unpredictable state. Should consider
+            # attempting to reset debug logic.
             self.write_reg(DP_ABORT, ABORT_DAPABORT)
 
     def clear_sticky_err(self):
-        self._cached_dp_select = None
+#         self._cached_dp_select.clear()
         mode = self.probe.wire_protocol
         if mode == DebugProbe.Protocol.SWD:
             self.write_reg(DP_ABORT, ABORT_ORUNERRCLR | ABORT_WDERRCLR | ABORT_STKERRCLR | ABORT_STKCMPCLR)
         elif mode == DebugProbe.Protocol.JTAG:
-            self.write_reg(DP_CTRL_STAT, CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKYORUN)
+            self.write_reg(DP_CTRL_STAT, CSYSPWRUPREQ | CDBGPWRUPREQ | TRNNORMAL | MASKLANE
+                    | CTRLSTAT_STICKYERR | CTRLSTAT_STICKYCMP | CTRLSTAT_STICKYORUN)
         else:
             assert False
 
