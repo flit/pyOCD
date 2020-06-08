@@ -17,6 +17,15 @@
 from functools import wraps
 from threading import (Lock, Semaphore)
 from contextlib import contextmanager
+import logging
+
+# Import low-level thread module for either Python 3 or 2.
+try
+    import _thread as thread
+except ImportError:
+    import thread
+
+LOG = logging.getLogger(__name__)
 
 def locked(func):
     """! @brief Decorator to automatically lock a method of a class.
@@ -105,9 +114,11 @@ class RWValueLock(object):
             called if the value needs to change. This parameter is optional. If not provided, then
             the `value` property can be used.
         """
+        LOG.debug("[t:%s] acquire_for_value(%#010x)", thread.get_native_id(), value)
         self.acquire_read()
         if value != self._current_value:
             # The value needs to change, so switch from reader to writer.
+            LOG.debug("[t:%s] acquire_for_value(%#010x): value needs to change", thread.get_native_id(), value)
             self.release_read()
             self.acquire_write()
             
@@ -119,45 +130,56 @@ class RWValueLock(object):
                 if value_setter is not None:
                     value_setter(value)
             finally:
-                # Revert back to reader.
+                # Release write lock on any exit from this block.
                 self.release_write()
-                self.acquire_read()
+
+            # Revert back to reader.
+            LOG.debug("[t:%s] acquire_for_value(%#010x): revert to reader", thread.get_native_id(), value)
+            self.acquire_read()
         return self._current_value
         
     def release_for_value(self):
         """! @brief Release the lock obtained with acquire_for_value()."""
+        LOG.debug("[t:%s] release_for_value", thread.get_native_id())
         self.release_read()
     
     def clear(self):
         """! @brief Set the current value to None."""
+        LOG.debug("[t:%s] clear", thread.get_native_id())
         with self.lock_for_value(None):
             pass
     
     def acquire_read(self):
         """! @brief Acquire a read lock."""
+        LOG.debug("[t:%s] acquire_read", thread.get_native_id())
         self._order_sem.acquire()
         self._reader_count_sem.acquire()
         if self._reader_count == 0:
             self._resource_sem.acquire()
         self._reader_count += 1
+        LOG.debug("[t:%s]     reader_count <- %i", thread.get_native_id(), self._reader_count)
         self._order_sem.release()
         self._reader_count_sem.release()
         
     def release_read(self):
         """! @brief Release a previously acquired read lock."""
+        LOG.debug("[t:%s] release_read", thread.get_native_id())
         self._reader_count_sem.acquire()
         self._reader_count -= 1
+        LOG.debug("[t:%s]     reader_count <- %i", thread.get_native_id(), self._reader_count)
         if self._reader_count == 0:
             self._resource_sem.release()
         self._reader_count_sem.release()
     
     def acquire_write(self):
         """! @brief Acquire a write lock."""
+        LOG.debug("[t:%s] acquire_write", thread.get_native_id())
         self._order_sem.acquire()
         self._resource_sem.acquire()
         self._order_sem.release()
         
     def release_write(self):
         """! @brief Release a previously acquired write lock."""
+        LOG.debug("[t:%s] release_write", thread.get_native_id())
         self._resource_sem.release()
 
