@@ -25,6 +25,7 @@ import struct
 import traceback
 import argparse
 import logging
+from itertools import (chain, repeat)
 
 from pyocd.core.helpers import ConnectHelper
 from pyocd.flash.file_programmer import FileProgrammer
@@ -45,8 +46,12 @@ from test_util import (
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Test configuration values.        
-TEST_MAX_LENGTH = 256 * 1024
-TEST_THREAD_COUNT = 4
+TEST_MAX_LENGTH = 1 * 1024 * 1024
+TEST_THREAD_COUNT = 8
+TEST_SUBCHUNK_COUNT = 2 # Number of reads/writes per thread.
+
+def ncycles(iterable, n):
+    return chain.from_iterable(repeat(tuple(iterable), n))
 
 class ConcurrencyTestResult(TestResult):
     def __init__(self):
@@ -91,6 +96,7 @@ def concurrency_test(board_id):
         # Prepare TEST_THREAD_COUNT regions of RAM with patterns
         data_len = min(TEST_MAX_LENGTH, ram_region.length)
         chunk_len = data_len // TEST_THREAD_COUNT
+        subchunk_len = chunk_len // TEST_SUBCHUNK_COUNT
         
         chunk_data = []
         for i in range(TEST_THREAD_COUNT):
@@ -98,18 +104,24 @@ def concurrency_test(board_id):
         
         def write_chunk_data(core, i):
             start = ram_region.start + chunk_len * i
-            end = start + chunk_len - 1
-            print("Writing region %i from %#010x to %#010x" % (i, start, end))
-            core.write_memory_block8(start, chunk_data[i])
-            print("Finished writing region %i" % (i))
+            for j in range(TEST_SUBCHUNK_COUNT):
+                offset = subchunk_len * j
+                addr = start + offset
+                end = addr + subchunk_len - 1
+                print("Writing region %i:%i from %#010x to %#010x via %s" % (i, j, addr, end, core.ap))
+                core.write_memory_block8(addr, chunk_data[i][offset:offset + subchunk_len])
+                print("Finished writing region %i:%i" % (i, j))
 
         def read_chunk_data(core, i):
             start = ram_region.start + chunk_len * i
-            end = start + chunk_len - 1
-            print("Reading region %i from %#010x to %#010x" % (i, start, end))
-            core = ap.read_memory_block8(start, chunk_len)
-            chunk_read_data[i].extend(data)
-            print("Finished reading region %i" % (i))
+            for j in range(TEST_SUBCHUNK_COUNT):
+                offset = subchunk_len * j
+                addr = start + offset
+                end = addr + subchunk_len - 1
+                print("Reading region %i:%i from %#010x to %#010x via %s" % (i, j, addr, end, core.ap))
+                data = core.read_memory_block8(addr, subchunk_len)
+                chunk_read_data[i].extend(data)
+                print("Finished reading region %i:%i" % (i, j))
         
         # Test with a single core/AP.
         print("\n------ Test 1: Concurrent memory accesses, single core ------")
@@ -137,14 +149,20 @@ def concurrency_test(board_id):
         # Test with a multiple cores/APs.
         if len(target.cores) > 1:
             print("\n------ Test 2: Concurrent memory accesses, multiple cores ------")
+            
+            cycle_count = ((len(target.cores) + TEST_THREAD_COUNT - 1) // TEST_THREAD_COUNT * TEST_THREAD_COUNT)
+            repeat_cores = ncycles(iter(target.cores), cycle_count)
+            thread_args = []
+            for i in range(TEST_THREAD_COUNT):
+                thread_args.append((target.cores[next(repeat_cores)], i))
 
             # Write chunk patterns concurrently.
             print("Writing %i regions to RAM" % TEST_THREAD_COUNT)
-            run_in_parallel(write_chunk_data, [[c, i] for c, i in zip(target.cores, range(TEST_THREAD_COUNT))])
+            run_in_parallel(write_chunk_data, thread_args)
         
             print("Reading %i regions to RAM" % TEST_THREAD_COUNT)
             chunk_read_data = [list() for i in range(TEST_THREAD_COUNT)]
-            run_in_parallel(read_chunk_data, [[c, i] for c, i in zip(target.cores, range(TEST_THREAD_COUNT))])
+            run_in_parallel(read_chunk_data, thread_args)
         
             print("Comparing data")
         
