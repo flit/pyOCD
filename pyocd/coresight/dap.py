@@ -474,6 +474,7 @@ class DebugPort(object):
 
     def read_dp(self, addr, now=True):
         num = self.next_access_number
+        did_lock = False
         
         # Update DPBANKSEL if required and obtain a lock on it.
         did_lock = self._set_dpbanksel(addr, False)
@@ -508,6 +509,7 @@ class DebugPort(object):
 
     def write_dp(self, addr, data):
         num = self.next_access_number
+        did_lock = False
         
         # Update DPBANKSEL if required and obtain a lock on it.
         did_lock = self._set_dpbanksel(addr, True)
@@ -549,6 +551,7 @@ class DebugPort(object):
     def write_ap(self, addr, data):
         assert type(addr) in (six.integer_types)
         num = self.next_access_number
+        did_lock = False
 
         try:
             did_lock = self._select_ap(addr)
@@ -566,6 +569,7 @@ class DebugPort(object):
     def read_ap(self, addr, now=True):
         assert type(addr) in (six.integer_types)
         num = self.next_access_number
+        did_lock = False
 
         try:
             did_lock = self._select_ap(addr)
@@ -599,6 +603,7 @@ class DebugPort(object):
     def write_ap_multiple(self, addr, values):
         assert type(addr) in (six.integer_types)
         num = self.next_access_number
+        did_lock = False
         
         try:
             did_lock = self._select_ap(addr)
@@ -606,18 +611,20 @@ class DebugPort(object):
             return self.probe.write_ap_multiple(addr, values)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
+            raise
+        finally:
             if did_lock:
                 self._cached_dp_select.release_for_value()
-            raise
 
     def read_ap_multiple(self, addr, count=1, now=True):
         assert type(addr) in (six.integer_types)
         num = self.next_access_number
+        did_lock = False
         
         try:
             did_lock = self._select_ap(addr)
             TRACE.debug("read_ap_multiple:%06d (addr=0x%08x, count=%i)", num, addr, count)
-            result_cb = self.probe.read_ap_multiple(addr, count, now=now)
+            result_cb = self.probe.read_ap_multiple(addr, count, now=False)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             if did_lock:
