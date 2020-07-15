@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -97,11 +97,8 @@ class HandlerModeThread(TargetThread):
     def context(self):
         return self._target_context
 
-    def __str__(self):
-        return "<HandlerModeThread@0x%08x>" % (id(self))
-
     def __repr__(self):
-        return str(self)
+        return "<HandlerModeThread@0x%08x>" % (id(self))
 
 
 
