@@ -88,30 +88,56 @@ class TargetList(object):
                 LOG.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
                 node = 0
 
-REGS_SW_NO_MPU = ['r4', 'r5', 'r6', 'r7', 'r8', 'r9', 'r10', 'r11', '_exc_return_', 'psplim_s']
-REGS_SW_MPU = ['r4', 'r5', 'r6', 'r7', 'r8', 'r9', 'r10', 'r11', '_exc_return_', 'control', 'psplim_s']
+REGS_R4_R11 = ['r4', 'r5', 'r6', 'r7', 'r8', 'r9', 'r10', 'r11']
 
-REGS_HW_DCRS_0 = ['_signature_', '_reserved0_', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9', 'r10', 'r11']
-REGS_HW_STANDARD = ['r0', 'r1', 'r2', 'r3', 'r12', 'sp', 'lr', 'pc', 'xpsr']
+REGS_SW_NO_MPU_V7M = REGS_R4_R11
+REGS_SW_MPU_V7M = ['control'] + REGS_R4_R11
+
+REGS_SW_NO_MPU_V8M = ['psplim_s', '_exc_return_'] + REGS_R4_R11
+REGS_SW_MPU_V8M = ['psplim_s', 'control', '_exc_return_'] + REGS_R4_R11
+
+REGS_HW_DCRS_0 = ['_signature_', '_reserved0_'] + REGS_R4_R11
+REGS_HW_STANDARD = ['r0', 'r1', 'r2', 'r3', 'r12', 'lr', 'pc', 'xpsr']
 
 REGS_HW_FP_STANDARD_CTX = [('s%i' % n) for n in range(16)] + ['fpscr', '_reserved1_']
 REGS_FP_HI = [('s%i' % n) for n in range(16, 32)] # s16-s31
 
-def _get_table_regs(dcrs, ftype, mpu):
-    """! @brief Construct the full register sequence given stack frame options."""
+def _get_table_regs_v7m(fpu, ftype, mpu):
+    """! @brief Construct the full v6-M/v7-M FreeRTOS register sequence given stack frame options."""
     if mpu:
-        regs = REGS_SW_MPU
+        regs = REGS_SW_MPU_V7M
     else:
-        regs = REGS_SW_NO_MPU
+        regs = REGS_SW_NO_MPU_V7M
+    # Note we don't use += here because that updates the original list!
+    if fpu:
+        regs + regs + ['_exc_return_']
+        if ftype == 0:
+            regs = regs + REGS_FP_HI
+    regs = regs + REGS_HW_STANDARD
     if ftype == 0:
-        regs += REGS_FP_HI
+        regs = regs + REGS_HW_FP_STANDARD_CTX
+    return regs
+
+def _get_table_regs_v8m(dcrs, ftype, mpu):
+    """! @brief Construct the full v8-M FreeRTOS register sequence given stack frame options.
+    
+    For certain combinations, FreeRTOS 10.x unnecessarily saves registers that were already saved on the
+    stack by the hardware. In these cases, the offset we use will be set to the hardware-written register.
+    """
+    if mpu:
+        regs = REGS_SW_MPU_V8M
+    else:
+        regs = REGS_SW_NO_MPU_V8M
+    # Note we don't use += here because that updates the original list!
+    if ftype == 0:
+        regs = regs + REGS_FP_HI
     if dcrs == 0:
-        regs += REGS_HW_DCRS_0
-    regs += REGS_HW_STANDARD
+        regs = regs + REGS_HW_DCRS_0
+    regs = regs + REGS_HW_STANDARD
     if ftype == 0:
-        regs += REGS_HW_FP_STANDARD_CTX
+        regs = regs + REGS_HW_FP_STANDARD_CTX
         if dcrs == 0:
-            regs += REGS_FP_HI
+            regs = regs + REGS_FP_HI
     return regs
 
 class FreeRTOSThreadContext(DebugContext):
@@ -119,26 +145,30 @@ class FreeRTOSThreadContext(DebugContext):
     
     # SP/PSP are handled specially, so it is not in these dicts.
     
-    # FreeRTOS 10.x stack layout for v7-M:
+    # FreeRTOS 10.x stack layout for v6-M and v7-M:
     #
-    #   <sw> exc_return (lr)
-    #   <sw> r4-r11
+    #   <new SP here, lowest addr>
     #   <sw> control                [configENABLE_MPU==1]
+    #   <sw> r4-r11
+    #   <sw> exc_return (lr)        [configENABLE_FPU==1]
     #   <sw> s16-s31                [configENABLE_FPU==1 && EXC_RETURN.FType==0]
     #   <hw> r0-r3, r12-r15, xpsr
     #   <hw> s0-s15                 [FPU && EXC_RETURN.FType==0]
     #   <hw> fpscr                  [FPU && EXC_RETURN.FType==0]
     #   <hw> (reserved word)        [FPU && EXC_RETURN.FType==0]
+    #   <orig SP here, highest addr>
     #
-    # v6-M is same without FPU or MPU.
+    # Notes:
+    # - FreeRTOS does not support MPU on M0/+.
+    # - No non-FPU builds, EXC_RETURN is saved on temporarily on MSP during the call to vTaskSwitchContext.
 
     # FreeRTOS 10.x stack layout for v8-M:
     #
     #   <new SP here, lowest addr>
-    #   <sw> r4-r11
-    #   <sw> exc_return (lr)
-    #   <sw> control                [configENABLE_MPU==1]
     #   <sw> psplim
+    #   <sw> control                [configENABLE_MPU==1]
+    #   <sw> exc_return (lr)
+    #   <sw> r4-r11
     #   <sw> s16-s31                [EXC_RETURN.FType==0]
     # <todo> secure context shite   [SECCTX]
     #   <hw> integrity signature    [EXC_RETURN.DCRS==0]
@@ -152,14 +182,7 @@ class FreeRTOSThreadContext(DebugContext):
     #   <orig SP here, highest addr>
     #
     # combinations:
-    #   - DCRS==0, FType==0, use_mpu=0
-    #   - DCRS==1, FType==0, use_mpu=0
-    #   - DCRS==0, FType==1, use_mpu=0
-    #   - DCRS==1, FType==1, use_mpu=0
-    #   - DCRS==0, FType==0, use_mpu=1
-    #   - DCRS==1, FType==0, use_mpu=1
-    #   - DCRS==0, FType==1, use_mpu=1
-    #   - DCRS==1, FType==1, use_mpu=1
+    #   - DCRS=={0,1}, FType=={0,1}, use_mpu={0,1}
     #
     # Note that FreeRTOS currently does not optimize for whether the extended secure state context
     # is already on the stack (EXC_RETURN.DCRS). This can happen under these conditions:
@@ -173,11 +196,25 @@ class FreeRTOSThreadContext(DebugContext):
     # TODO FP lazy state
     # TODO psplim for right state
     
-    EXC_RETURN_KEY = '_exc_return_'
-    
+    ## Map of v6-M, v7-M register offset maps.
+    REGISTER_TABLES_V7M = {
+            (fpu, ftype, mpu): build_register_offset_table(_get_table_regs_v7m(fpu, ftype, mpu))
+            for fpu, ftype, mpu in (
+                    # This is just a binary progression...
+                    (0, 0, 0), \
+                    (1, 0, 0), \
+                    (0, 1, 0), \
+                    (1, 1, 0), \
+                    (0, 0, 1), \
+                    (1, 0, 1), \
+                    (0, 1, 1), \
+                    (1, 1, 1), \
+                    )
+        }
 
-    REGISTER_TABLES = {
-            (dcrs, ftype, mpu): build_register_offset_table(_get_table_regs(dcrs, ftype, mpu))
+    ## Map of v8-M register offset maps.
+    REGISTER_TABLES_V8M = {
+            (dcrs, ftype, mpu): build_register_offset_table(_get_table_regs_v8m(dcrs, ftype, mpu))
             for dcrs, ftype, mpu in (
                     # This is just a binary progression...
                     (0, 0, 0), \
@@ -192,112 +229,21 @@ class FreeRTOSThreadContext(DebugContext):
         }
     
     V7M_EXC_RETURN_OFFSET = 0
-    V8M_EXC_RETURN_OFFSET = 32
+    
+    ## Offset to the EXC_RETURN value saved on a thread's stack frame.
+    #
+    # Map from <MPU support> -> offset
+    V8M_EXC_RETURN_OFFSET = {
+    #   MPU    Offset
+        False: 4,  # psplim, exc_return, ...
+        True:  8,  # psplim, control, exc_return, ...
+        }
     
     FTYPE_BASIC_FRAME = 1
     FTYPE_EXT_FRAME = 0
     
-    ## Software-stacked registers present in all cases (callee registers).
-#     SW_REGISTER_OFFSETS_NO_MPU_NO_FPU = {
-#                  4: 0, # r4
-#                  5: 4, # r5
-#                  6: 8, # r6
-#                  7: 12, # r7
-#                  8: 16, # r8
-#                  9: 20, # r9
-#                  10: 24, # r10
-#                  11: 28, # r11
-#                  EXC_RETURN_KEY: 32, # exception LR
-#                  29: 36, # psplim_s
-#             }
-# 
-#     SW_REGISTER_OFFSETS_MPU_NO_FPU = {
-#                  4: 0, # r4
-#                  5: 4, # r5
-#                  6: 8, # r6
-#                  7: 12, # r7
-#                  8: 16, # r8
-#                  9: 20, # r9
-#                  10: 24, # r10
-#                  11: 28, # r11
-#                  EXC_RETURN_KEY: 32, # exception LR
-#                  -4: 36, # control
-#                  29: 40, # psplim_s
-#             }
-# 
-#     ## Hardware-stacked registers present in all cases (caller registers).
-#     NOFPU_REGISTER_OFFSETS = {
-#                  0: 32, # r0
-#                  1: 36, # r1
-#                  2: 40, # r2
-#                  3: 44, # r3
-#                  12: 48, # r12
-#                  14: 52, # lr
-#                  15: 56, # pc
-#                  16: 60, # xpsr
-#             }
-#     NOFPU_REGISTER_OFFSETS.update(COMMON_REGISTER_OFFSETS)
-# 
-#     FPU_BASIC_REGISTER_OFFSETS = {
-#                 -1: 32, # exception LR
-#                  0: 36, # r0
-#                  1: 40, # r1
-#                  2: 44, # r2
-#                  3: 48, # r3
-#                  12: 42, # r12
-#                  14: 56, # lr
-#                  15: 60, # pc
-#                  16: 64, # xpsr
-#             }
-#     FPU_BASIC_REGISTER_OFFSETS.update(COMMON_REGISTER_OFFSETS)
-# 
-#     FPU_EXTENDED_REGISTER_OFFSETS = {
-#                 -1: 32, # exception LR
-#                  0x50: 36, # s16
-#                  0x51: 40, # s17
-#                  0x52: 44, # s18
-#                  0x53: 48, # s19
-#                  0x54: 52, # s20
-#                  0x55: 56, # s21
-#                  0x56: 60, # s22
-#                  0x57: 64, # s23
-#                  0x58: 68, # s24
-#                  0x59: 72, # s25
-#                  0x5a: 76, # s26
-#                  0x5b: 80, # s27
-#                  0x5c: 84, # s28
-#                  0x5d: 88, # s29
-#                  0x5e: 92, # s30
-#                  0x5f: 96, # s31
-#                  0: 100, # r0
-#                  1: 104, # r1
-#                  2: 108, # r2
-#                  3: 112, # r3
-#                  12: 116, # r12
-#                  14: 120, # lr
-#                  15: 124, # pc
-#                  16: 128, # xpsr
-#                  0x40: 132, # s0
-#                  0x41: 136, # s1
-#                  0x42: 140, # s2
-#                  0x43: 144, # s3
-#                  0x44: 148, # s4
-#                  0x45: 152, # s5
-#                  0x46: 156, # s6
-#                  0x47: 160, # s7
-#                  0x48: 164, # s8
-#                  0x49: 168, # s9
-#                  0x4a: 172, # s10
-#                  0x4b: 176, # s11
-#                  0x4c: 180, # s12
-#                  0x4d: 184, # s13
-#                  0x4e: 188, # s14
-#                  0x4f: 192, # s15
-#                  33: 196, # fpscr
-#                  # (reserved word: 200)
-#             }
-#     FPU_EXTENDED_REGISTER_OFFSETS.update(COMMON_REGISTER_OFFSETS)
-
+    BASIC_EXC_RETURN = 0xfffffffd
+    
     def __init__(self, parent, thread):
         super(FreeRTOSThreadContext, self).__init__(parent)
         self._thread = thread
@@ -333,18 +279,28 @@ class FreeRTOSThreadContext(DebugContext):
         else:
             # Read stacked exception return LR. FreeRTOS uses different stack layouts for v7-M and v8-M.
             if self.core.architecture in (CoreArchitecture.ARMv8M_BASE, CoreArchitecture.ARMv8M_MAIN):
-                offset = self.V8M_EXC_RETURN_OFFSET
-            else:
+                offset = self.V8M_EXC_RETURN_OFFSET[self._use_mpu]
+            elif self._use_fpu:
                 offset = self.V7M_EXC_RETURN_OFFSET
-            try:
-                exc_return = self._parent.read32(sp + offset)
-            except exceptions.TransferError as err:
-                LOG.warning("Transfer error while reading thread's saved LR: %s", err, exc_info=True)
-                exc_return = 0xffffffff # This is bogus.
+            else:
+                # v6-M and v7-M non-FPU builds don't save EXC_RETURN on the stack, so use a fixed value.
+                offset = None
+                exc_return = self.BASIC_EXC_RETURN
+            
+            if offset is not None:
+                # Read stacked exception return LR. The saved EXC_RETURN is always at the top of the stack.
+                try:
+                    exc_return = self._parent.read32(sp + offset)
+                except exceptions.TransferError as err:
+                    LOG.warning("Transfer error while reading thread's saved LR: %s", err, exc_info=True)
+                    exc_return = self.BASIC_EXC_RETURN # Just a guess!
 
         # Extract bits from EXC_RETURN.
         ftype = (exc_return >> EXC_RETURN_FTYPE_BIT) & 1
         dcrs = (exc_return >> EXC_RETURN_DCRS_BIT) & 1
+        
+        LOG.debug("%s: isCurrent=%i inException=%i exc_return=%#010x ftype=%i dcrs=%i",
+            self._thread, isCurrent, inException, exc_return, ftype, dcrs)
 
         # Determine the hw and sw stacked register sizes.
         if self.core.architecture in (CoreArchitecture.ARMv8M_BASE, CoreArchitecture.ARMv8M_MAIN):
@@ -355,7 +311,7 @@ class FreeRTOSThreadContext(DebugContext):
             if ftype == self.FTYPE_EXT_FRAME:
                 swStacked += 0x40 # s16-s31
                 hwStacked += 0x40 + 8 # s0-s15, fpscr, reserved
-            if dcsr == 0:
+            if dcrs == 0:
                 hwStacked += 0x28 # signature, reserved, r4-r11
                 if ftype == self.FTYPE_EXT_FRAME:
                     hwStacked += 0x40 # s16-s31
@@ -364,9 +320,13 @@ class FreeRTOSThreadContext(DebugContext):
             hwStacked = 0x24
             if self._use_mpu:
                 swStacked += 4
-            if ftype == self.FTYPE_EXT_FRAME:
-                swStacked += 0x40
-                hwStacked += 0x40 + 8
+            if self._use_fpu:
+                swStacked += 4
+                if ftype == self.FTYPE_EXT_FRAME:
+                    swStacked += 0x40
+                    hwStacked += 0x40 + 8
+
+        LOG.debug("%s: swStacked=%i hwStacked=%i", self._thread, swStacked, hwStacked)
             
         # Sanity check for FPU.
         if (ftype == self.FTYPE_EXT_FRAME) and not self._use_fpu:
@@ -375,7 +335,11 @@ class FreeRTOSThreadContext(DebugContext):
                     "not enabled.")
 
         # Look up the register offset table to use.
-        table = self.REGISTER_TABLES[(dcrs, ftype, int(self._use_mpu))]
+        if self.core.architecture in (CoreArchitecture.ARMv8M_BASE, CoreArchitecture.ARMv8M_MAIN):
+            table = self.REGISTER_TABLES_V8M[(dcrs, ftype, int(self._use_mpu))]
+        else:
+            table = self.REGISTER_TABLES_V7M[(int(self._use_fpu), ftype, int(self._use_mpu))]
+        LOG.debug("%s: table=%r", self._thread, table)
 
         for reg in reg_list:
             # Must handle stack pointer specially. We report the original SP as it was on the "live" thread
