@@ -579,10 +579,12 @@ def cortex_test(board_id):
             print("TEST FAILED")
         
         print("\n\n------ Test get_halt_reason ------")
+        target.set_vector_catch(Target.VectorCatch.CORE_RESET)
+        target.write32(CortexM.DFSR, 0xffff)
         target.reset()
-        print("Get halt reason while running")
+        print("Get halt reason for vector catch")
         reason = target.get_halt_reason()
-        if reason is None:
+        if reason is Target.HaltReason.VECTOR_CATCH:
             test_pass_count += 1
             print("TEST PASSED")
         else:
@@ -590,6 +592,7 @@ def cortex_test(board_id):
         test_count += 1
         
         print("Get halt reason when stopped by debugger")
+        target.write32(CortexM.DFSR, 0xffff)
         target.halt()
         reason = target.get_halt_reason()
         if reason == Target.HaltReason.DEBUG:
@@ -609,6 +612,12 @@ def cortex_test(board_id):
         target.reset()
 
         result.passed = test_count == test_pass_count
+
+        if result.passed:
+            print("CORTEX TEST PASSED")
+        else:
+            print("CORTEX TEST FAILED")
+
         return result
 
 if __name__ == "__main__":
