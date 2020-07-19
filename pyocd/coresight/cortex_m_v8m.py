@@ -162,7 +162,15 @@ class CortexM_v8M(CortexM):
                 | CortexM.DFSR_BKPT
                 | CortexM.DFSR_HALTED)
     
-    def get_halt_reason(self):
+    def clear_halt_reason(self):
+        self.write32(CortexM.DFSR, CortexM.DFSR_HALTED
+                | CortexM.DFSR_BKPT
+                | CortexM.DFSR_DWTTRAP
+                | CortexM.DFSR_VCATCH
+                | CortexM.DFSR_EXTERNAL
+                | self.DFSR_PMU)
+
+    def get_halt_reason(self, clear=True):
         """! @brief Returns the reason the core has halted.
         
         This overridden version of this method adds support for v8.x-M halt reasons.
@@ -184,5 +192,7 @@ class CortexM_v8M(CortexM):
             reason = Target.HaltReason.PMU
         else:
             reason = None
+        if clear:
+            self.clear_halt_reason()
         return reason
 

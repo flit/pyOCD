@@ -1287,9 +1287,23 @@ class CortexM(Target, CoreSightCoreComponent):
     def is_vector_catch(self):
         return self.get_halt_reason() == Target.HaltReason.VECTOR_CATCH
     
-    def get_halt_reason(self):
-        """! @brief Returns the reason the core has halted.
+    def clear_halt_reason(self):
+        """! @brief Clear the halt reason register.
         
+        The halt reason register flags are sticky until cleared. So clearing it ensures that the next
+        call to get_halt_reason() returns the reason for only the most recent halt.
+        """
+        self.write32(CortexM.DFSR, CortexM.DFSR_HALTED
+                | CortexM.DFSR_BKPT
+                | CortexM.DFSR_DWTTRAP
+                | CortexM.DFSR_VCATCH
+                | CortexM.DFSR_EXTERNAL)
+
+    def get_halt_reason(self, clear=True):
+        """! @brief Get the reason the core halted.
+        
+        @param self
+        @param clear If True, the halt reason will be cleared before returning.
         @return @ref pyocd.core.target.Target.HaltReason "Target.HaltReason" enumerator or None.
         """
         dfsr = self.read32(CortexM.DFSR)
@@ -1305,6 +1319,8 @@ class CortexM(Target, CoreSightCoreComponent):
             reason = Target.HaltReason.EXTERNAL
         else:
             reason = None
+        if clear:
+            self.clear_halt_reason()
         return reason
 
     def get_target_context(self, core=None):

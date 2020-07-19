@@ -292,7 +292,10 @@ class Target(MemoryInterface):
     def get_security_state(self):
         raise NotImplementedError()
 
-    def get_halt_reason(self):
+    def clear_halt_reason(self):
+        raise NotImplementedError()
+
+    def get_halt_reason(self, clear=True):
         raise NotImplementedError()
 
     @property

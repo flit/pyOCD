@@ -222,8 +222,11 @@ class SoCTarget(Target, GraphNode):
     def get_security_state(self):
         return self.selected_core.get_security_state()
 
-    def get_halt_reason(self):
-        return self.selected_core.get_halt_reason()
+    def clear_halt_reason(self):
+        return self.selected_core.clear_halt_reason()
+
+    def get_halt_reason(self, clear=True):
+        return self.selected_core.get_halt_reason(clear)
 
     def set_vector_catch(self, enableMask):
         return self.selected_core.set_vector_catch(enableMask)
