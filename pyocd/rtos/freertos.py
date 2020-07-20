@@ -305,26 +305,26 @@ class FreeRTOSThreadContext(DebugContext):
         # Determine the hw and sw stacked register sizes.
         if self.core.architecture in (CoreArchitecture.ARMv8M_BASE, CoreArchitecture.ARMv8M_MAIN):
             swStacked = 0x28 # r4-r11, exc_return, psplim
-            hwStacked = 0x24
+            hwStacked = 0x20 # r0-r3, r12, lr, pc, xpsr
             if self._use_mpu:
                 swStacked += 4 # control
             if ftype == self.FTYPE_EXT_FRAME:
                 swStacked += 0x40 # s16-s31
-                hwStacked += 0x40 + 8 # s0-s15, fpscr, reserved
+                hwStacked += 0x48 # s0-s15, fpscr, reserved
             if dcrs == 0:
                 hwStacked += 0x28 # signature, reserved, r4-r11
                 if ftype == self.FTYPE_EXT_FRAME:
                     hwStacked += 0x40 # s16-s31
         else:
-            swStacked = 0x20
-            hwStacked = 0x24
+            swStacked = 0x20 # r4-r11
+            hwStacked = 0x20 # r0-r3, r12, lr, pc, xpsr
             if self._use_mpu:
-                swStacked += 4
+                swStacked += 4 # control
             if self._use_fpu:
-                swStacked += 4
+                swStacked += 4 # exc_return
                 if ftype == self.FTYPE_EXT_FRAME:
-                    swStacked += 0x40
-                    hwStacked += 0x40 + 8
+                    swStacked += 0x40 # s16-s31
+                    hwStacked += 0x48 # s0-s15, fpscr, reserved
 
         LOG.debug("%s: swStacked=%i hwStacked=%i", self._thread, swStacked, hwStacked)
             
