@@ -23,139 +23,139 @@ from ..utility import conversion
 class MemoryInterface:
     """@brief Interface for memory access."""
 
-    def write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
+    def write_memory(self, addr: int, data: int, transfer_size: int = 32, **kwargs) -> None:
         """@brief Write a single memory location.
 
         By default the transfer size is a word."""
         raise NotImplementedError()
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int = 32) -> int:
+    def read_memory(self, addr: int, transfer_size: int = 32, **kwargs) -> int:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int = 32, now: Literal[True] = True) -> int:
+    def read_memory(self, addr: int, transfer_size: int = 32, now: Literal[True] = True, **kwargs) -> int:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int, now: Literal[False]) -> Callable[[], int]:
+    def read_memory(self, addr: int, transfer_size: int, now: Literal[False], **kwargs) -> Callable[[], int]:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int, now: bool) -> Union[int, Callable[[], int]]:
+    def read_memory(self, addr: int, transfer_size: int, now: bool, **kwargs) -> Union[int, Callable[[], int]]:
         ...
 
-    def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         """@brief Read a memory location.
 
         By default, a word will be read."""
         raise NotImplementedError()
 
-    def write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
+    def write_memory_block32(self, addr: int, data: Sequence[int], **kwargs) -> None:
         """@brief Write an aligned block of 32-bit words."""
         raise NotImplementedError()
 
-    def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
+    def read_memory_block32(self, addr: int, size: int, **kwargs) -> Sequence[int]:
         """@brief Read an aligned block of 32-bit words."""
         raise NotImplementedError()
 
-    def write64(self, addr: int, value: int) -> None:
+    def write64(self, addr: int, value: int, **kwargs) -> None:
         """@brief Shorthand to write a 64-bit word."""
         self.write_memory(addr, value, 64)
 
-    def write32(self, addr: int, value: int) -> None:
+    def write32(self, addr: int, value: int, **kwargs) -> None:
         """@brief Shorthand to write a 32-bit word."""
         self.write_memory(addr, value, 32)
 
-    def write16(self, addr: int, value: int) -> None:
+    def write16(self, addr: int, value: int, **kwargs) -> None:
         """@brief Shorthand to write a 16-bit halfword."""
         self.write_memory(addr, value, 16)
 
-    def write8(self, addr: int, value: int) -> None:
+    def write8(self, addr: int, value: int, **kwargs) -> None:
         """@brief Shorthand to write a byte."""
         self.write_memory(addr, value, 8)
 
     @overload
-    def read64(self, addr: int) -> int:
+    def read64(self, addr: int, **kwargs) -> int:
         ...
 
     @overload
-    def read64(self, addr: int, now: Literal[True] = True) -> int:
+    def read64(self, addr: int, now: Literal[True] = True, **kwargs) -> int:
         ...
 
     @overload
-    def read64(self, addr: int, now: Literal[False]) -> Callable[[], int]:
+    def read64(self, addr: int, now: Literal[False], **kwargs) -> Callable[[], int]:
         ...
 
     @overload
-    def read64(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read64(self, addr: int, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         ...
 
-    def read64(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read64(self, addr: int, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         """@brief Shorthand to read a 64-bit word."""
         return self.read_memory(addr, 64, now)
 
     @overload
-    def read32(self, addr: int) -> int:
+    def read32(self, addr: int, **kwargs) -> int:
         ...
 
     @overload
-    def read32(self, addr: int, now: Literal[True] = True) -> int:
+    def read32(self, addr: int, now: Literal[True] = True, **kwargs) -> int:
         ...
 
     @overload
-    def read32(self, addr: int, now: Literal[False]) -> Callable[[], int]:
+    def read32(self, addr: int, now: Literal[False], **kwargs) -> Callable[[], int]:
         ...
 
     @overload
-    def read32(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read32(self, addr: int, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         ...
 
-    def read32(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read32(self, addr: int, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         """@brief Shorthand to read a 32-bit word."""
         return self.read_memory(addr, 32, now)
 
     @overload
-    def read16(self, addr: int) -> int:
+    def read16(self, addr: int, **kwargs) -> int:
         ...
 
     @overload
-    def read16(self, addr: int, now: Literal[True] = True) -> int:
+    def read16(self, addr: int, now: Literal[True] = True, **kwargs) -> int:
         ...
 
     @overload
-    def read16(self, addr: int, now: Literal[False]) -> Callable[[], int]:
+    def read16(self, addr: int, now: Literal[False], **kwargs) -> Callable[[], int]:
         ...
 
     @overload
-    def read16(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read16(self, addr: int, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         ...
 
-    def read16(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read16(self, addr: int, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         """@brief Shorthand to read a 16-bit halfword."""
         return self.read_memory(addr, 16, now)
 
     @overload
-    def read8(self, addr: int) -> int:
+    def read8(self, addr: int, **kwargs) -> int:
         ...
 
     @overload
-    def read8(self, addr: int, now: Literal[True] = True) -> int:
+    def read8(self, addr: int, now: Literal[True] = True, **kwargs) -> int:
         ...
 
     @overload
-    def read8(self, addr: int, now: Literal[False]) -> Callable[[], int]:
+    def read8(self, addr: int, now: Literal[False], **kwargs) -> Callable[[], int]:
         ...
 
     @overload
-    def read8(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read8(self, addr: int, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         ...
 
-    def read8(self, addr: int, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read8(self, addr: int, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         """@brief Shorthand to read a byte."""
         return self.read_memory(addr, 8, now)
 
-    def read_memory_block8(self, addr: int, size: int) -> Sequence[int]:
+    def read_memory_block8(self, addr: int, size: int, **kwargs) -> Sequence[int]:
         """@brief Read a block of unaligned bytes in memory.
         @return an array of byte values
         """
@@ -163,14 +163,14 @@ class MemoryInterface:
 
         # try to read 8bits data
         if (size > 0) and (addr & 0x01):
-            mem = self.read8(addr)
+            mem = self.read8(addr, **kwargs)
             res.append(mem)
             size -= 1
             addr += 1
 
         # try to read 16bits data
         if (size > 1) and (addr & 0x02):
-            mem = cast(int, self.read16(addr))
+            mem = cast(int, self.read16(addr, **kwargs))
             res.append(mem & 0xff)
             res.append((mem >> 8) & 0xff)
             size -= 2
@@ -178,39 +178,39 @@ class MemoryInterface:
 
         # try to read aligned block of 32bits
         if (size >= 4):
-            data32 = self.read_memory_block32(addr, size // 4)
+            data32 = self.read_memory_block32(addr, size // 4, **kwargs)
             res += conversion.u32le_list_to_byte_list(data32)
             size -= 4*len(data32)
             addr += 4*len(data32)
 
         if (size > 1):
-            mem = cast(int, self.read16(addr))
+            mem = cast(int, self.read16(addr, **kwargs))
             res.append(mem & 0xff)
             res.append((mem >> 8) & 0xff)
             size -= 2
             addr += 2
 
         if (size > 0):
-            mem = self.read8(addr)
+            mem = self.read8(addr, **kwargs)
             res.append(mem)
 
         return res
 
-    def write_memory_block8(self, addr: int, data: Sequence[int]) -> None:
+    def write_memory_block8(self, addr: int, data: Sequence[int], **kwargs) -> None:
         """@brief Write a block of unaligned bytes in memory."""
         size = len(data)
         idx = 0
 
         #try to write 8 bits data
         if (size > 0) and (addr & 0x01):
-            self.write8(addr, data[idx])
+            self.write8(addr, data[idx], **kwargs)
             size -= 1
             addr += 1
             idx += 1
 
         # try to write 16 bits data
         if (size > 1) and (addr & 0x02):
-            self.write16(addr, data[idx] | (data[idx+1] << 8))
+            self.write16(addr, data[idx] | (data[idx+1] << 8), **kwargs)
             size -= 2
             addr += 2
             idx += 2
@@ -218,19 +218,19 @@ class MemoryInterface:
         # write aligned block of 32 bits
         if (size >= 4):
             data32 = conversion.byte_list_to_u32le_list(data[idx:idx + (size & ~0x03)])
-            self.write_memory_block32(addr, data32)
+            self.write_memory_block32(addr, data32, **kwargs)
             addr += size & ~0x03
             idx += size & ~0x03
             size -= size & ~0x03
 
         # try to write 16 bits data
         if (size > 1):
-            self.write16(addr, data[idx] | (data[idx+1] << 8))
+            self.write16(addr, data[idx] | (data[idx+1] << 8), **kwargs)
             size -= 2
             addr += 2
             idx += 2
 
         #try to write 8 bits data
         if (size > 0):
-            self.write8(addr, data[idx])
+            self.write8(addr, data[idx], **kwargs)
 

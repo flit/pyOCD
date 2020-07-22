@@ -44,12 +44,12 @@ class ElfReaderContext(DebugContext):
             self._tree.addi(start, start + length, sect)
             LOG.debug("created flash section [%x:%x] for section %s", start, start + length, sect.name)
 
-    def read_memory(self, addr, transfer_size=32, now=True):
+    def read_memory(self, addr, transfer_size=32, now=True, **kwargs):
         length = transfer_size // 8
         matches = self._tree.overlap(addr, addr + length)
         # Must match only one interval (ELF section).
         if len(matches) != 1:
-            return self._parent.read_memory(addr, transfer_size, now)
+            return self._parent.read_memory(addr, transfer_size, now, **kwargs)
         section = matches.pop().data
         addr -= section.start
 
@@ -66,17 +66,17 @@ class ElfReaderContext(DebugContext):
         else:
             return read_memory_cb
 
-    def read_memory_block8(self, addr, size):
+    def read_memory_block8(self, addr, size, **kwargs):
         matches = self._tree.overlap(addr, addr + size)
         # Must match only one interval (ELF section).
         if len(matches) != 1:
-            return self._parent.read_memory_block8(addr, size)
+            return self._parent.read_memory_block8(addr, size, **kwargs)
         section = matches.pop().data
         addr -= section.start
         data = section.data[addr:addr + size]
         LOG.debug("read flash data [%x:%x]", section.start + addr, section.start + addr  + size)
         return list(data)
 
-    def read_memory_block32(self, addr, size):
-        return conversion.byte_list_to_u32le_list(self.read_memory_block8(addr, size * 4))
+    def read_memory_block32(self, addr, size, **kwargs):
+        return conversion.byte_list_to_u32le_list(self.read_memory_block8(addr, size * 4, **kwargs))
 

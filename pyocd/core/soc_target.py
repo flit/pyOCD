@@ -207,39 +207,39 @@ class SoCTarget(TargetGraphNode):
             eraser._log_chip_erase = False
             eraser.erase()
 
-    def write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
-        return self.selected_core_or_raise.write_memory(addr, data, transfer_size)
+    def write_memory(self, addr: int, data: int, transfer_size: int = 32, **kwargs) -> None:
+        return self.selected_core_or_raise.write_memory(addr, data, transfer_size, **kwargs)
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int = 32) -> int:
+    def read_memory(self, addr: int, transfer_size: int = 32, **kwargs) -> int:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int = 32, now: Literal[True] = True) -> int:
+    def read_memory(self, addr: int, transfer_size: int = 32, now: Literal[True] = True, **kwargs) -> int:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int, now: Literal[False]) -> Callable[[], int]:
+    def read_memory(self, addr: int, transfer_size: int, now: Literal[False], **kwargs) -> Callable[[], int]:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int, now: bool) -> Union[int, Callable[[], int]]:
+    def read_memory(self, addr: int, transfer_size: int, now: bool, **kwargs) -> Union[int, Callable[[], int]]:
         ...
 
-    def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True) -> Union[int, Callable[[], int]]:
-        return self.selected_core_or_raise.read_memory(addr, transfer_size, now)
+    def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
+        return self.selected_core_or_raise.read_memory(addr, transfer_size, now, **kwargs)
 
-    def write_memory_block8(self, addr: int, data: Sequence[int]) -> None:
-        return self.selected_core_or_raise.write_memory_block8(addr, data)
+    def write_memory_block8(self, addr: int, data: Sequence[int], **kwargs) -> None:
+        return self.selected_core_or_raise.write_memory_block8(addr, data, **kwargs)
 
-    def write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
-        return self.selected_core_or_raise.write_memory_block32(addr, data)
+    def write_memory_block32(self, addr: int, data: Sequence[int], **kwargs) -> None:
+        return self.selected_core_or_raise.write_memory_block32(addr, data, **kwargs)
 
-    def read_memory_block8(self, addr: int, size: int) -> Sequence[int]:
-        return self.selected_core_or_raise.read_memory_block8(addr, size)
+    def read_memory_block8(self, addr: int, size: int, **kwargs) -> Sequence[int]:
+        return self.selected_core_or_raise.read_memory_block8(addr, size, **kwargs)
 
-    def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
-        return self.selected_core_or_raise.read_memory_block32(addr, size)
+    def read_memory_block32(self, addr: int, size: int, **kwargs) -> Sequence[int]:
+        return self.selected_core_or_raise.read_memory_block32(addr, size, **kwargs)
 
     def read_core_register(self, id: "CoreRegisterNameOrNumberType") -> "CoreRegisterValueType":
         return self.selected_core_or_raise.read_core_register(id)

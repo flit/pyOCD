@@ -507,33 +507,33 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             if self._default_software_reset_type == Target.ResetType.SW_CORE:
                 self._default_software_reset_type = Target.ResetType.SW_EMULATED
 
-    def write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
+    def write_memory(self, addr: int, data: int, transfer_size: int = 32, **kwargs) -> None:
         """@brief Write a single memory location.
 
         By default the transfer size is a word."""
-        self.ap.write_memory(addr, data, transfer_size)
+        self.ap.write_memory(addr, data, transfer_size, **kwargs)
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int = 32) -> int:
+    def read_memory(self, addr: int, transfer_size: int = 32, **kwargs) -> int:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int = 32, now: Literal[True] = True) -> int:
+    def read_memory(self, addr: int, transfer_size: int = 32, now: Literal[True] = True, **kwargs) -> int:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int, now: Literal[False]) -> Callable[[], int]:
+    def read_memory(self, addr: int, transfer_size: int, now: Literal[False], **kwargs) -> Callable[[], int]:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int, now: bool) -> Union[int, Callable[[], int]]:
+    def read_memory(self, addr: int, transfer_size: int, now: bool, **kwargs) -> Union[int, Callable[[], int]]:
         ...
 
-    def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         """@brief Read a memory location.
 
         By default, a word will be read."""
-        result = self.ap.read_memory(addr, transfer_size, now)
+        result = self.ap.read_memory(addr, transfer_size, now, **kwargs)
 
         # Read callback returned for async reads.
         def read_memory_cb():
@@ -544,24 +544,24 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         else:
             return read_memory_cb
 
-    def read_memory_block8(self, addr: int, size: int) -> Sequence[int]:
+    def read_memory_block8(self, addr: int, size: int, **kwargs) -> Sequence[int]:
         """@brief Read a block of unaligned bytes in memory.
         @return an array of byte values
         """
-        data = self.ap.read_memory_block8(addr, size)
+        data = self.ap.read_memory_block8(addr, size, **kwargs)
         return self.bp_manager.filter_memory_unaligned_8(addr, size, data)
 
-    def write_memory_block8(self, addr: int, data: Sequence[int]) -> None:
+    def write_memory_block8(self, addr: int, data: Sequence[int], **kwargs) -> None:
         """@brief Write a block of unaligned bytes in memory."""
-        self.ap.write_memory_block8(addr, data)
+        self.ap.write_memory_block8(addr, data, **kwargs)
 
-    def write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
+    def write_memory_block32(self, addr: int, data: Sequence[int], **kwargs) -> None:
         """@brief Write an aligned block of 32-bit words."""
-        self.ap.write_memory_block32(addr, data)
+        self.ap.write_memory_block32(addr, data, **kwargs)
 
-    def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
+    def read_memory_block32(self, addr: int, size: int, **kwargs) -> Sequence[int]:
         """@brief Read an aligned block of 32-bit words."""
-        data = self.ap.read_memory_block32(addr, size)
+        data = self.ap.read_memory_block32(addr, size, **kwargs)
         return self.bp_manager.filter_memory_aligned_32(addr, size, data)
 
     def halt(self) -> None:

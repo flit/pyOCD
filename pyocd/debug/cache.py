@@ -29,23 +29,23 @@ class CachingDebugContext(DebugContext):
         self._regcache = RegisterCache(parent, self.core) if enable_register else parent
         self._memcache = MemoryCache(parent, self.core) if enable_memory else parent
 
-    def write_memory(self, addr, value, transfer_size=32):
-        return self._memcache.write_memory(addr, value, transfer_size)
+    def write_memory(self, addr, value, transfer_size=32, **kwargs):
+        return self._memcache.write_memory(addr, value, transfer_size, **kwargs)
 
-    def read_memory(self, addr, transfer_size=32, now=True):
-        return self._memcache.read_memory(addr, transfer_size, now)
+    def read_memory(self, addr, transfer_size=32, now=True, **kwargs):
+        return self._memcache.read_memory(addr, transfer_size, now, **kwargs)
 
-    def write_memory_block8(self, addr, value):
-        return self._memcache.write_memory_block8(addr, value)
+    def write_memory_block8(self, addr, value, **kwargs):
+        return self._memcache.write_memory_block8(addr, value, **kwargs)
 
-    def write_memory_block32(self, addr, data):
-        return self._memcache.write_memory_block32(addr, data)
+    def write_memory_block32(self, addr, data, **kwargs):
+        return self._memcache.write_memory_block32(addr, data, **kwargs)
 
-    def read_memory_block8(self, addr, size):
-        return self._memcache.read_memory_block8(addr, size)
+    def read_memory_block8(self, addr, size, **kwargs):
+        return self._memcache.read_memory_block8(addr, size, **kwargs)
 
-    def read_memory_block32(self, addr, size):
-        return self._memcache.read_memory_block32(addr, size)
+    def read_memory_block32(self, addr, size, **kwargs):
+        return self._memcache.read_memory_block32(addr, size, **kwargs)
 
     def read_core_registers_raw(self, reg_list):
         return self._regcache.read_core_registers_raw(reg_list)

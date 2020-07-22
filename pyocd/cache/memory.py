@@ -224,12 +224,12 @@ class MemoryCache(object):
         # Otherwise return whether the region is cacheable.
         return regions[0].is_cacheable
 
-    def read_memory(self, addr, transfer_size=32, now=True):
+    def read_memory(self, addr, transfer_size=32, now=True, **kwargs):
         # TODO use more optimal underlying read_memory calls
         if transfer_size == 8:
-            data = self.read_memory_block8(addr, 1)[0]
+            data = self.read_memory_block8(addr, 1, **kwargs)[0]
         else:
-            data = conversion.byte_list_to_nbit_le_list(self.read_memory_block8(addr, transfer_size // 8),
+            data = conversion.byte_list_to_nbit_le_list(self.read_memory_block8(addr, transfer_size // 8, **kwargs),
                     transfer_size)[0]
 
         if now:
@@ -239,7 +239,7 @@ class MemoryCache(object):
                 return data
             return read_cb
 
-    def read_memory_block8(self, addr, size):
+    def read_memory_block8(self, addr, size, **kwargs):
         if size <= 0:
             return []
 
@@ -248,7 +248,7 @@ class MemoryCache(object):
         # Validate memory regions.
         if not self._check_regions(addr, size):
             LOG.debug("range [%x:%x] is not cacheable", addr, addr+size)
-            return self._context.read_memory_block8(addr, size)
+            return self._context.read_memory_block8(addr, size, **kwargs)
 
         # Get the cached and uncached subranges of the requested read.
         combined = self._read(addr, size)
@@ -258,16 +258,16 @@ class MemoryCache(object):
         assert len(result) == size, "result size ({}) != requested size ({})".format(len(result), size)
         return result
 
-    def read_memory_block32(self, addr, size):
-        return conversion.byte_list_to_u32le_list(self.read_memory_block8(addr, size*4))
+    def read_memory_block32(self, addr, size, **kwargs):
+        return conversion.byte_list_to_u32le_list(self.read_memory_block8(addr, size*4, **kwargs))
 
-    def write_memory(self, addr, value, transfer_size=32):
+    def write_memory(self, addr, value, transfer_size=32, **kwargs):
         if transfer_size == 8:
-            return self.write_memory_block8(addr, [value])
+            return self.write_memory_block8(addr, [value], **kwargs)
         else:
-            return self.write_memory_block8(addr, conversion.nbit_le_list_to_byte_list([value], transfer_size))
+            return self.write_memory_block8(addr, conversion.nbit_le_list_to_byte_list([value], transfer_size), **kwargs)
 
-    def write_memory_block8(self, addr, value):
+    def write_memory_block8(self, addr, value, **kwargs):
         if len(value) <= 0:
             return
 
@@ -277,7 +277,7 @@ class MemoryCache(object):
         cacheable = self._check_regions(addr, len(value))
 
         # Write to the target first, so if it fails we don't update the cache.
-        result = self._context.write_memory_block8(addr, value)
+        result = self._context.write_memory_block8(addr, value, **kwargs)
 
         if cacheable:
             size = len(value)
@@ -300,8 +300,8 @@ class MemoryCache(object):
 
         return result
 
-    def write_memory_block32(self, addr, data):
-        return self.write_memory_block8(addr, conversion.u32le_list_to_byte_list(data))
+    def write_memory_block32(self, addr, data, **kwargs):
+        return self.write_memory_block8(addr, conversion.u32le_list_to_byte_list(data), **kwargs)
 
     def invalidate(self):
         self._reset_cache()

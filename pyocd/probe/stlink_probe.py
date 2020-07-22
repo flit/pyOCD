@@ -294,7 +294,6 @@ class STLinkMemoryInterface(MemoryInterface):
             self._link.write_mem8(addr, [data], self._apsel, csw)
 
     def read_memory(self, addr: int, transfer_size: int=32, now: bool=True, **attrs: Any) \
-            -> Union[int, Callable[[], int]]:
         """@brief Read a memory location.
 
         By default, a word will be read.

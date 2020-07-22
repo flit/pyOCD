@@ -1066,7 +1066,7 @@ class APAccessMemoryInterface(memory_interface.MemoryInterface):
         else:
             return "Root Component ({})".format(self._ap_address)
 
-    def write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
+    def write_memory(self, addr: int, data: int, transfer_size: int = 32, **kwargs) -> None:
         """@brief Write a single memory location.
 
         By default the transfer size is a word."""
@@ -1076,22 +1076,22 @@ class APAccessMemoryInterface(memory_interface.MemoryInterface):
         return self._dp.write_ap(self._offset + addr, data)
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int) -> int:
+    def read_memory(self, addr: int, transfer_size: int, **kwargs) -> int:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int, now: Literal[True] = True) -> int:
+    def read_memory(self, addr: int, transfer_size: int, now: Literal[True] = True, **kwargs) -> int:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int, now: Literal[False]) -> Callable[[], int]:
+    def read_memory(self, addr: int, transfer_size: int, now: Literal[False], **kwargs) -> Callable[[], int]:
         ...
 
     @overload
-    def read_memory(self, addr: int, transfer_size: int, now: bool) -> Union[int, Callable[[], int]]:
+    def read_memory(self, addr: int, transfer_size: int, now: bool, **kwargs) -> Union[int, Callable[[], int]]:
         ...
 
-    def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True) -> Union[int, Callable[[], int]]:
+    def read_memory(self, addr: int, transfer_size: int = 32, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         """@brief Read a memory location.
 
         By default, a word will be read."""
@@ -1100,14 +1100,14 @@ class APAccessMemoryInterface(memory_interface.MemoryInterface):
 
         return self._dp.read_ap(self._offset + addr, now)
 
-    def write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
+    def write_memory_block32(self, addr: int, data: Sequence[int], **kwargs) -> None:
         """@brief Write an aligned block of 32-bit words."""
         addr += self._offset
         for word in data:
             self._dp.write_ap(addr, word)
             addr += 4
 
-    def read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
+    def read_memory_block32(self, addr: int, size: int, **kwargs) -> Sequence[int]:
         """@brief Read an aligned block of 32-bit words."""
         addr += self._offset
         result_cbs = [self._dp.read_ap(addr + i * 4, now=False) for i in range(size)]

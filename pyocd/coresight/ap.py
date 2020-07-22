@@ -997,7 +997,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self._invalidate_cache()
 
     @locked
-    def _write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
+    def _write_memory(self, addr: int, data: int, transfer_size: int = 32, **kwargs) -> None:
         """@brief Write a single memory location.
 
         By default the transfer size is a word
@@ -1042,23 +1042,23 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         TRACE.debug("write_mem:%06d }", num)
 
     @overload
-    def _read_memory(self, addr: int, transfer_size: int = 32) -> int:
+    def _read_memory(self, addr: int, transfer_size: int = 32, **kwargs) -> int:
         ...
 
     @overload
-    def _read_memory(self, addr: int, transfer_size: int = 32, now: Literal[True] = True) -> int:
+    def _read_memory(self, addr: int, transfer_size: int = 32, now: Literal[True] = True, **kwargs) -> int:
         ...
 
     @overload
-    def _read_memory(self, addr: int, transfer_size: int, now: Literal[False]) -> Callable[[], int]:
+    def _read_memory(self, addr: int, transfer_size: int, now: Literal[False], **kwargs) -> Callable[[], int]:
         ...
 
     @overload
-    def _read_memory(self, addr: int, transfer_size: int, now: bool) -> Union[int, Callable[[], int]]:
+    def _read_memory(self, addr: int, transfer_size: int, now: bool, **kwargs) -> Union[int, Callable[[], int]]:
         ...
 
     @locked
-    def _read_memory(self, addr: int, transfer_size: int = 32, now: bool = True) -> Union[int, Callable[[], int]]:
+    def _read_memory(self, addr: int, transfer_size: int = 32, now: bool = True, **kwargs) -> Union[int, Callable[[], int]]:
         """@brief Read a memory location.
 
         By default, a word will be read.
@@ -1179,7 +1179,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         return resp
 
     @locked
-    def _write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
+    def _write_memory_block32(self, addr: int, data: Sequence[int], **kwargs) -> None:
         """@brief Write a block of aligned words in memory."""
         assert (addr & 0x3) == 0
         addr &= self._address_mask
@@ -1195,7 +1195,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         return
 
     @locked
-    def _read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
+    def _read_memory_block32(self, addr: int, size: int, **kwargs) -> Sequence[int]:
         """@brief Read a block of aligned words in memory.
 
         @return A list of word values.

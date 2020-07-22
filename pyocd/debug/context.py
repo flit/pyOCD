@@ -62,23 +62,23 @@ class DebugContext(MemoryInterface):
     def session(self):
         return self.core.session
 
-    def write_memory(self, addr, value, transfer_size=32):
-        return self._parent.write_memory(addr, value, transfer_size)
+    def write_memory(self, addr, value, transfer_size=32, **kwargs):
+        return self._parent.write_memory(addr, value, transfer_size, **kwargs)
 
-    def read_memory(self, addr, transfer_size=32, now=True):
-        return self._parent.read_memory(addr, transfer_size, now)
+    def read_memory(self, addr, transfer_size=32, now=True, **kwargs):
+        return self._parent.read_memory(addr, transfer_size, now, **kwargs)
 
-    def write_memory_block8(self, addr, value):
-        return self._parent.write_memory_block8(addr, value)
+    def write_memory_block8(self, addr, value, **kwargs):
+        return self._parent.write_memory_block8(addr, value, **kwargs)
 
-    def write_memory_block32(self, addr, data):
-        return self._parent.write_memory_block32(addr, data)
+    def write_memory_block32(self, addr, data, **kwargs):
+        return self._parent.write_memory_block32(addr, data, **kwargs)
 
-    def read_memory_block8(self, addr, size):
-        return self._parent.read_memory_block8(addr, size)
+    def read_memory_block8(self, addr, size, **kwargs):
+        return self._parent.read_memory_block8(addr, size, **kwargs)
 
-    def read_memory_block32(self, addr, size):
-        return self._parent.read_memory_block32(addr, size)
+    def read_memory_block32(self, addr, size, **kwargs):
+        return self._parent.read_memory_block32(addr, size, **kwargs)
 
     def read_core_register(self, reg):
         """@brief Read one core register.

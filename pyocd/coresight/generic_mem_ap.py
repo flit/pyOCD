@@ -67,23 +67,23 @@ class GenericMemAPTarget(Target, CoreSightCoreComponent):
     def disconnect(self, resume=True):
         pass
 
-    def write_memory(self, addr, value, transfer_size=32):
-        self.ap.write_memory(addr, value, transfer_size)
+    def write_memory(self, addr, value, transfer_size=32, **kwargs):
+        self.ap.write_memory(addr, value, transfer_size, **kwargs)
 
-    def read_memory(self, addr, transfer_size=32, now=True):
-        return self.ap.read_memory(addr, transfer_size, now)
+    def read_memory(self, addr, transfer_size=32, now=True, **kwargs):
+        return self.ap.read_memory(addr, transfer_size, now, **kwargs)
 
-    def read_memory_block8(self, addr, size):
-        return self.ap.read_memory_block8(addr, size)
+    def read_memory_block8(self, addr, size, **kwargs):
+        return self.ap.read_memory_block8(addr, size, **kwargs)
 
-    def write_memory_block8(self, addr, data):
-        self.ap.write_memory_block8(addr, data)
+    def write_memory_block8(self, addr, data, **kwargs):
+        self.ap.write_memory_block8(addr, data, **kwargs)
 
-    def write_memory_block32(self, addr, data):
-        self.ap.write_memory_block32(addr, data)
+    def write_memory_block32(self, addr, data, **kwargs):
+        self.ap.write_memory_block32(addr, data, **kwargs)
 
-    def read_memory_block32(self, addr, size):
-        return self.ap.read_memory_block32(addr, size)
+    def read_memory_block32(self, addr, size, **kwargs):
+        return self.ap.read_memory_block32(addr, size, **kwargs)
 
     def halt(self):
         pass
