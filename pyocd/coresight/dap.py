@@ -726,7 +726,7 @@ class APAccessMemoryInterface(memory_interface.MemoryInterface):
         else:
             return "Root Component ({})".format(self._ap_address)
 
-    def write_memory(self, addr, data, transfer_size=32):
+    def write_memory(self, addr, data, transfer_size=32, **kwargs):
         """! @brief Write a single memory location.
         
         By default the transfer size is a word."""
@@ -735,7 +735,7 @@ class APAccessMemoryInterface(memory_interface.MemoryInterface):
         
         return self._dp.write_ap(self._offset + addr, data)
         
-    def read_memory(self, addr, transfer_size=32, now=True):
+    def read_memory(self, addr, transfer_size=32, now=True, **kwargs):
         """! @brief Read a memory location.
         
         By default, a word will be read."""
@@ -744,14 +744,14 @@ class APAccessMemoryInterface(memory_interface.MemoryInterface):
         
         return self._dp.read_ap(self._offset + addr, now)
 
-    def write_memory_block32(self, addr, data):
+    def write_memory_block32(self, addr, data, **kwargs):
         """! @brief Write an aligned block of 32-bit words."""
         addr += self._offset
         for word in data:
             self._dp.write_ap(addr, data)
             addr += 4
 
-    def read_memory_block32(self, addr, size):
+    def read_memory_block32(self, addr, size, **kwargs):
         """! @brief Read an aligned block of 32-bit words."""
         addr += self._offset
         result_cbs = [self._dp.read_ap(addr + i * 4, now=False) for i in range(size)]

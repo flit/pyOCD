@@ -846,7 +846,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         self._cached_csw = -1
 
     @locked
-    def _write_memory(self, addr, data, transfer_size=32):
+    def _write_memory(self, addr, data, transfer_size=32, **kwargs):
         """! @brief Write a single memory location.
         
         By default the transfer size is a word
@@ -890,7 +890,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         TRACE.debug("write_mem:%06d }", num)
 
     @locked
-    def _read_memory(self, addr, transfer_size=32, now=True):
+    def _read_memory(self, addr, transfer_size=32, now=True, **kwargs):
         """! @brief Read a memory location.
         
         By default, a word will be read.
@@ -1010,7 +1010,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         return resp
 
     @locked
-    def _write_memory_block32(self, addr, data):
+    def _write_memory_block32(self, addr, data, **kwargs):
         """! @brief Write a block of aligned words in memory."""
         assert (addr & 0x3) == 0
         addr &= self._address_mask
@@ -1026,7 +1026,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         return
 
     @locked
-    def _read_memory_block32(self, addr, size):
+    def _read_memory_block32(self, addr, size, **kwargs):
         """! @brief Read a block of aligned words in memory.
         
         @return A list of word values.

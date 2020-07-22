@@ -231,7 +231,7 @@ class STLinkMemoryInterface(MemoryInterface):
         self._link = link
         self._apsel = apsel
 
-    def write_memory(self, addr, data, transfer_size=32):
+    def write_memory(self, addr, data, transfer_size=32, **kwargs):
         """! @brief Write a single memory location.
         
         By default the transfer size is a word.
@@ -245,7 +245,7 @@ class STLinkMemoryInterface(MemoryInterface):
         elif transfer_size == 8:
             self._link.write_mem8(addr, [data], self._apsel)
         
-    def read_memory(self, addr, transfer_size=32, now=True):
+    def read_memory(self, addr, transfer_size=32, now=True, **kwargs):
         """! @brief Read a memory location.
         
         By default, a word will be read.
@@ -263,11 +263,11 @@ class STLinkMemoryInterface(MemoryInterface):
             return result
         return result if now else read_callback
 
-    def write_memory_block32(self, addr, data):
+    def write_memory_block32(self, addr, data, **kwargs):
         addr &= 0xffffffff
         self._link.write_mem32(addr, conversion.u32le_list_to_byte_list(data), self._apsel)
 
-    def read_memory_block32(self, addr, size):
+    def read_memory_block32(self, addr, size, **kwargs):
         addr &= 0xffffffff
         return conversion.byte_list_to_u32le_list(self._link.read_mem32(addr, size * 4, self._apsel))
 

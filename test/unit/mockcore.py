@@ -112,7 +112,7 @@ class MockCore(CoreSightCoreComponent):
                 else:
                     raise KeyError("register %s not available in this CPU", info.name)
 
-    def read_memory(self, addr, transfer_size=32, now=True):
+    def read_memory(self, addr, transfer_size=32, now=True, **kwargs):
         if transfer_size == 8:
             return 0x12
         elif transfer_size == 16:
@@ -122,20 +122,20 @@ class MockCore(CoreSightCoreComponent):
         elif transfer_size == 64:
             return 0x1234567812345678
 
-    def read_memory_block8(self, addr, size):
+    def read_memory_block8(self, addr, size, **kwargs):
         for r, m in self.regions:
             if r.contains_range(addr, length=size):
                 addr -= r.start
                 return list(m[addr:addr+size])
         return [0x55] * size
 
-    def read_memory_block32(self, addr, size):
-        return conversion.byte_list_to_u32le_list(self.read_memory_block8(addr, size*4))
+    def read_memory_block32(self, addr, size, **kwargs):
+        return conversion.byte_list_to_u32le_list(self.read_memory_block8(addr, size*4, **kwargs))
 
-    def write_memory(self, addr, value, transfer_size=32):
+    def write_memory(self, addr, value, transfer_size=32, **kwargs):
         return True
 
-    def write_memory_block8(self, addr, value):
+    def write_memory_block8(self, addr, value, **kwargs):
         for r, m in self.regions:
             if r.contains_range(addr, length=len(value)):
                 addr -= r.start
@@ -143,7 +143,7 @@ class MockCore(CoreSightCoreComponent):
                 return True
         return False
 
-    def write_memory_block32(self, addr, data):
-        return self.write_memory_block8(addr, conversion.u32le_list_to_byte_list(data))
+    def write_memory_block32(self, addr, data, **kwargs):
+        return self.write_memory_block8(addr, conversion.u32le_list_to_byte_list(data), **kwargs)
 
 

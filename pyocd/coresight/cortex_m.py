@@ -423,17 +423,17 @@ class CortexM(Target, CoreSightCoreComponent):
                 fpu_type = "FPv4-SP-D16-M"
             LOG.info("FPU present: " + fpu_type)
 
-    def write_memory(self, addr, value, transfer_size=32):
+    def write_memory(self, addr, value, transfer_size=32, **kwargs):
         """! @brief Write a single memory location.
         
         By default the transfer size is a word."""
-        self.ap.write_memory(addr, value, transfer_size)
+        self.ap.write_memory(addr, value, transfer_size, **kwargs)
 
-    def read_memory(self, addr, transfer_size=32, now=True):
+    def read_memory(self, addr, transfer_size=32, now=True, **kwargs):
         """! @brief Read a memory location.
         
         By default, a word will be read."""
-        result = self.ap.read_memory(addr, transfer_size, now)
+        result = self.ap.read_memory(addr, transfer_size, now, **kwargs)
 
         # Read callback returned for async reads.
         def read_memory_cb():
@@ -444,24 +444,24 @@ class CortexM(Target, CoreSightCoreComponent):
         else:
             return read_memory_cb
 
-    def read_memory_block8(self, addr, size):
+    def read_memory_block8(self, addr, size, **kwargs):
         """! @brief Read a block of unaligned bytes in memory.
         @return an array of byte values
         """
-        data = self.ap.read_memory_block8(addr, size)
+        data = self.ap.read_memory_block8(addr, size, **kwargs)
         return self.bp_manager.filter_memory_unaligned_8(addr, size, data)
 
-    def write_memory_block8(self, addr, data):
+    def write_memory_block8(self, addr, data, **kwargs):
         """! @brief Write a block of unaligned bytes in memory."""
-        self.ap.write_memory_block8(addr, data)
+        self.ap.write_memory_block8(addr, data, **kwargs)
 
-    def write_memory_block32(self, addr, data):
+    def write_memory_block32(self, addr, data, **kwargs):
         """! @brief Write an aligned block of 32-bit words."""
-        self.ap.write_memory_block32(addr, data)
+        self.ap.write_memory_block32(addr, data, **kwargs)
 
-    def read_memory_block32(self, addr, size):
+    def read_memory_block32(self, addr, size, **kwargs):
         """! @brief Read an aligned block of 32-bit words."""
-        data = self.ap.read_memory_block32(addr, size)
+        data = self.ap.read_memory_block32(addr, size, **kwargs)
         return self.bp_manager.filter_memory_aligned_32(addr, size, data)
 
     def halt(self):
