@@ -42,9 +42,10 @@ class DAPAccessIntf(object):
         VENDOR = 1
         PRODUCT = 2
         SER_NUM = 3
-        FW_VER = 4
+        CMSIS_DAP_VER = 4
         DEVICE_VENDOR = 5
         DEVICE_NAME = 6
+        PRODUCT_FW_VER = 7
         CAPABILITIES = 0xf0
         SWO_BUFFER_SIZE = 0xfd
         MAX_PACKET_COUNT = 0xfe

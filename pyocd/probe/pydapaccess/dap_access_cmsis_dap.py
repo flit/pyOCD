@@ -555,6 +555,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._commands_to_read = None
         self._command_response_buf = None
         self._swo_status = None
+        self._fw_version = None
 
     @property
     def vendor_name(self):
@@ -568,6 +569,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def vidpid(self):
         """! @brief A tuple of USB VID and PID, in that order."""
         return self._vidpid
+    
+    @property
+    def firmware_version(self):
+        """! @brief A string of the product firmware version, or None."""
+        return self._fw_version
     
     def lock(self):
         """! @brief Lock the interface."""
@@ -591,10 +597,17 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         else:
             self._packet_count = self._protocol.dap_info(self.ID.MAX_PACKET_COUNT)
 
+        # Get the versions.
+        protocol_version = self._protocol.dap_info(self.ID.CMSIS_DAP_VER)
+        self._fw_version = self._protocol.dap_info(self.ID.PRODUCT_FW_VER)
+        
         # Log probe's firmware version.
-        fw_version = self._protocol.dap_info(self.ID.FW_VER)
-        if fw_version:
-            LOG.debug("CMSIS-DAP probe %s firmware version: %s", self._unique_id, fw_version)
+        if self._fw_version:
+            LOG.debug("Probe %s: firmware version %s, CMSIS-DAP protocol version %s",
+                    self._unique_id, self._fw_version, protocol_version)
+        else:
+            LOG.debug("Probe %s: CMSIS-DAP protocol version %s",
+                    self._unique_id. protocol_version)
 
         self._interface.set_packet_count(self._packet_count)
         self._packet_size = self._protocol.dap_info(self.ID.MAX_PACKET_SIZE)
