@@ -518,6 +518,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             self.read_memory = memoryInterface.read_memory
             self.write_memory_block32 = memoryInterface.write_memory_block32
             self.read_memory_block32 = memoryInterface.read_memory_block32
+            self.write_memory_block8 = memoryInterface.write_memory_block8
+            self.read_memory_block8 = memoryInterface.read_memory_block8
         else:
             self.write_memory = self._write_memory
             self.read_memory = self._read_memory
