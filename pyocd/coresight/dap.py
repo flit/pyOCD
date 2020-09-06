@@ -489,18 +489,29 @@ class DebugPort(object):
         """
         self._invalidate_cache()
     
-    def reset(self):
+    def reset(self, send_notifications=True):
         """! @brief Hardware reset.
         
         Pre- and post-reset notifications are sent.
         
         This method can be called before the DebugPort is connected.
-        """
-        self.session.notify(Target.Event.PRE_RESET, self)
-        self.probe.reset()
-        self.session.notify(Target.Event.POST_RESET, self)
 
-    def assert_reset(self, asserted):
+        @param self This object.
+        @param send_notifications Optional parameter used by higher-level reset methods so they can manage the
+            sending of reset notifications themselves, in order to provide more context in the notification.
+        
+        @todo Should automatic recovery from a disconnected DAP be provided for these low-level hardware resets
+            like is done for CortexM.reset()?
+        """
+        if send_notifications:
+            self.session.notify(Target.Event.PRE_RESET, self)
+
+        self.probe.reset()
+
+        if send_notifications:
+            self.session.notify(Target.Event.POST_RESET, self)
+
+    def assert_reset(self, asserted, send_notifications=True):
         """! @brief Assert or deassert the hardware reset signal.
         
         A pre-reset notification is sent before asserting reset, whereas a post-reset notification is sent
@@ -510,14 +521,17 @@ class DebugPort(object):
         
         @param self This object.
         @param asserted True if nRESET is to be driven low; False will drive nRESET high.
+        @param send_notifications Optional parameter used by higher-level reset methods so they can manage the
+            sending of reset notifications themselves, in order to provide more context in the notification.
         """
-        is_asserted = self.is_reset_asserted()
-        if asserted and not is_asserted:
-            self.session.notify(Target.Event.PRE_RESET, self)
+        if send_notifications:
+            is_asserted = self.is_reset_asserted()
+            if asserted and not is_asserted:
+                self.session.notify(Target.Event.PRE_RESET, self)
 
         self.probe.assert_reset(asserted)
 
-        if not asserted and is_asserted:
+        if send_notifications and not asserted and is_asserted:
             self.session.notify(Target.Event.POST_RESET, self)
 
     def is_reset_asserted(self):
