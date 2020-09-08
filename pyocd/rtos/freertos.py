@@ -18,6 +18,7 @@ import logging
 
 from .provider import (TargetThread, ThreadProvider)
 from .common import (
+    nbits,
     read_c_string,
     build_register_offset_table,
     HandlerModeThread,
@@ -143,8 +144,6 @@ def _get_table_regs_v8m(dcrs, ftype, mpu):
 class FreeRTOSThreadContext(DebugContext):
     """! @brief Thread context for FreeRTOS."""
     
-    # SP/PSP are handled specially, so it is not in these dicts.
-    
     # FreeRTOS 10.x stack layout for v6-M and v7-M:
     #
     #   <new SP here, lowest addr>
@@ -201,14 +200,7 @@ class FreeRTOSThreadContext(DebugContext):
             (fpu, ftype, mpu): build_register_offset_table(_get_table_regs_v7m(fpu, ftype, mpu))
             for fpu, ftype, mpu in (
                     # This is just a binary progression...
-                    (0, 0, 0), \
-                    (1, 0, 0), \
-                    (0, 1, 0), \
-                    (1, 1, 0), \
-                    (0, 0, 1), \
-                    (1, 0, 1), \
-                    (0, 1, 1), \
-                    (1, 1, 1), \
+                    nbits(3, x) for x in range(8)
                     )
         }
 
@@ -217,14 +209,7 @@ class FreeRTOSThreadContext(DebugContext):
             (dcrs, ftype, mpu): build_register_offset_table(_get_table_regs_v8m(dcrs, ftype, mpu))
             for dcrs, ftype, mpu in (
                     # This is just a binary progression...
-                    (0, 0, 0), \
-                    (1, 0, 0), \
-                    (0, 1, 0), \
-                    (1, 1, 0), \
-                    (0, 0, 1), \
-                    (1, 0, 1), \
-                    (0, 1, 1), \
-                    (1, 1, 1), \
+                    nbits(3, x) for x in range(8)
                     )
         }
     
@@ -505,9 +490,11 @@ class FreeRTOSThreadProvider(ThreadProvider):
         if tasksWaitingTerminationSym is not None:
             self._symbols['xTasksWaitingTermination'] = tasksWaitingTerminationSym['xTasksWaitingTermination']
 
-        # Look up vPortEnableVFP() to determine if the FreeRTOS port supports the FPU.
+        # Look up vPortEnableVFP() (v7-M) or prvSetupFPU() (v8-M) to determine if the FreeRTOS port
+        # supports the FPU.
         vPortEnableVFP = self._lookup_symbols(["vPortEnableVFP"], symbolProvider)
-        self._fpu_port = vPortEnableVFP is not None
+        prvSetupFPU = self._lookup_symbols(["prvSetupFPU"], symbolProvider)
+        self._fpu_port = (vPortEnableVFP is not None) or (prvSetupFPU is not None)
         
         # Look up vPortStoreTaskMPUSettings() to determine if MPU support is enabled.
         vPortStoreTaskMPUSettings = self._lookup_symbols(["vPortStoreTaskMPUSettings"], symbolProvider)

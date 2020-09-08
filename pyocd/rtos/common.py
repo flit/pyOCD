@@ -31,6 +31,10 @@ EXC_RETURN_FTYPE_BIT = 4
 ## Callee registers are already on the stack when this bit is 0.
 EXC_RETURN_DCRS_BIT = 5
 
+def nbits(n, v):
+    """! @brief Return a tuple of the low n bits of v. First element is MSb."""
+    return tuple(((v >> i) & 1) for i in range(n - 1, -1, -1))
+
 def read_c_string(context, ptr):
     """! @brief Reads a null-terminated C string from the target."""
     if ptr == 0:
