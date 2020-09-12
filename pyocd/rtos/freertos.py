@@ -32,17 +32,6 @@ from ..debug.context import DebugContext
 from ..coresight.cortex_m_core_registers import index_for_reg
 from ..coresight.core_ids import CoreArchitecture
 
-FREERTOS_MAX_PRIORITIES	= 63
-
-LIST_SIZE = 20
-LIST_INDEX_OFFSET = 16
-LIST_NODE_NEXT_OFFSET = 8 # 4?
-LIST_NODE_OBJECT_OFFSET = 12
-
-THREAD_STACK_POINTER_OFFSET = 0
-THREAD_PRIORITY_OFFSET = 44 # + VxM_MPU_SETTINGS_SIZE
-THREAD_NAME_OFFSET = 52 # + VxM_MPU_SETTINGS_SIZE
-
 # FreeRTOS 10.x MPU support:
 #
 # All MPU-enabled ports, both v7-M and v8-M, set portTOTAL_NUM_REGIONS == 9.
@@ -62,6 +51,13 @@ V8M_MPU_SETTING_SIZE = 76
 LOG = logging.getLogger(__name__)
 
 class TargetList(object):
+    """! @brief FreeRTOS linked list."""
+
+    LIST_COUNT_OFFSET = 0
+    LIST_INDEX_OFFSET = 16
+    LIST_NODE_NEXT_OFFSET = 8
+    LIST_NODE_OBJECT_OFFSET = 12
+
     def __init__(self, context, ptr):
         self._context = context
         self._list = ptr
@@ -69,22 +65,22 @@ class TargetList(object):
     def __iter__(self):
         prev = -1
         found = 0
-        count = self._context.read32(self._list)
+        count = self._context.read32(self._list + self.LIST_COUNT_OFFSET)
         if count == 0:
             return
 
-        node = self._context.read32(self._list + LIST_INDEX_OFFSET)
+        node = self._context.read32(self._list + selfLIST_INDEX_OFFSET)
 
         while (node != 0) and (node != prev) and (found < count):
             try:
                 # Read the object from the node.
-                obj = self._context.read32(node + LIST_NODE_OBJECT_OFFSET)
+                obj = self._context.read32(node + selfLIST_NODE_OBJECT_OFFSET)
                 yield obj
                 found += 1
 
                 # Read next list node pointer.
                 prev = node
-                node = self._context.read32(node + LIST_NODE_NEXT_OFFSET)
+                node = self._context.read32(node + selfLIST_NODE_NEXT_OFFSET)
             except exceptions.TransferError:
                 LOG.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
                 node = 0
@@ -378,24 +374,29 @@ class FreeRTOSThread(TargetThread):
             DELETED : "Deleted",
         }
 
+    THREAD_STACK_POINTER_OFFSET = 0
+    THREAD_PRIORITY_OFFSET = 44 # + VxM_MPU_SETTINGS_SIZE
+    THREAD_NAME_OFFSET = 52 # + VxM_MPU_SETTINGS_SIZE
+
     def __init__(self, targetContext, provider, base):
         super(FreeRTOSThread, self).__init__(targetContext, provider, base)
         self._base = base
         self._state = FreeRTOSThread.READY
         self._thread_context = FreeRTOSThreadContext(self._target_context, self)
 
-        self._priority = self._target_context.read32(self._base + THREAD_PRIORITY_OFFSET)
+        self._priority = self._target_context.read32(self._base + self.THREAD_PRIORITY_OFFSET)
 
-        self._name = read_c_string(self._target_context, self._base + THREAD_NAME_OFFSET)
+        self._name = read_c_string(self._target_context, self._base + self.THREAD_NAME_OFFSET)
         if len(self._name) == 0:
             self._name = "Unnamed"
 
     def get_stack_pointer(self):
         # Get stack pointer saved in thread struct.
         try:
-            return self._target_context.read32(self._base + THREAD_STACK_POINTER_OFFSET)
+            return self._target_context.read32(self._base + self.THREAD_STACK_POINTER_OFFSET)
         except exceptions.TransferError:
-            LOG.debug("Transfer error while reading thread's stack pointer @ 0x%08x", self._base + THREAD_STACK_POINTER_OFFSET)
+            LOG.debug("Transfer error while reading thread's stack pointer @ 0x%08x",
+                    self._base + self.THREAD_STACK_POINTER_OFFSET)
             return 0
 
     @property
@@ -449,6 +450,10 @@ class FreeRTOSThreadProvider(ThreadProvider):
         "uxTopReadyPriority",
         "xSchedulerRunning",
         ]
+
+    FREERTOS_MAX_PRIORITIES	= 63
+
+    LIST_SIZE = 20
 
     def __init__(self, target):
         super(FreeRTOSThreadProvider, self).__init__(target)
@@ -513,7 +518,7 @@ class FreeRTOSThreadProvider(ThreadProvider):
         # size of a single list.
         delta = self._symbols['xDelayedTaskList2'] - self._symbols['xDelayedTaskList1']
         delta = self._get_elf_symbol_size('xDelayedTaskList1', self._symbols['xDelayedTaskList1'], delta)
-        if delta != LIST_SIZE:
+        if delta != self.LIST_SIZE:
             LOG.warning("FreeRTOS: list size is unexpected, maybe an unsupported configuration of FreeRTOS." + elfOptHelp)
             return False
 
@@ -521,11 +526,11 @@ class FreeRTOSThreadProvider(ThreadProvider):
         # us the total size of the pxReadyTaskLists array. But not trustworthy. Compiler can rearrange things
         delta = self._symbols['xDelayedTaskList1'] - self._symbols['pxReadyTasksLists']
         delta = self._get_elf_symbol_size('pxReadyTasksLists', self._symbols['pxReadyTasksLists'], delta);
-        if delta % LIST_SIZE:
+        if delta % self.LIST_SIZE:
             LOG.warning("FreeRTOS: pxReadyTasksLists size is unexpected, maybe an unsupported version of FreeRTOS." + elfOptHelp)
             return False
-        self._total_priorities = delta // LIST_SIZE
-        if self._total_priorities > FREERTOS_MAX_PRIORITIES:
+        self._total_priorities = delta // self.LIST_SIZE
+        if self._total_priorities > self.FREERTOS_MAX_PRIORITIES:
             LOG.warning("FreeRTOS: number of priorities is too large (%d)." + elfOptHelp, self._total_priorities)
             return False
         LOG.debug("FreeRTOS: number of priorities is %d", self._total_priorities)
@@ -571,7 +576,7 @@ class FreeRTOSThreadProvider(ThreadProvider):
         # Build up list of all the thread lists we need to scan.
         listsToRead = []
         for i in range(topPriority + 1):
-            listsToRead.append((self._symbols['pxReadyTasksLists'] + i * LIST_SIZE, FreeRTOSThread.READY))
+            listsToRead.append((self._symbols['pxReadyTasksLists'] + i * self.LIST_SIZE, FreeRTOSThread.READY))
 
         listsToRead.append((self._symbols['xDelayedTaskList1'], FreeRTOSThread.BLOCKED))
         listsToRead.append((self._symbols['xDelayedTaskList2'], FreeRTOSThread.BLOCKED))
