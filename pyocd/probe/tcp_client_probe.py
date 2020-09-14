@@ -366,11 +366,11 @@ class RemoteMemoryInterface(MemoryInterface):
 
     def write_memory(self, addr, data, transfer_size=32, **attrs):
         assert transfer_size in (8, 16, 32)
-        self._remote_probe._perform_request('write_mem', self._handle, addr, data, transfer_size)
+        self._remote_probe._perform_request('write_mem', self._handle, addr, data, transfer_size, attrs)
 
     def read_memory(self, addr, transfer_size=32, now=True, **attrs):
         assert transfer_size in (8, 16, 32)
-        result, exc = self._remote_probe._perform_request_without_raise('read_mem', self._handle, addr, transfer_size)
+        result, exc = self._remote_probe._perform_request_without_raise('read_mem', self._handle, addr, transfer_size, attrs)
 
         def read_callback():
             # Raise any exception here so the traceback includes the actual caller.
@@ -380,16 +380,16 @@ class RemoteMemoryInterface(MemoryInterface):
         return read_callback() if now else read_callback
 
     def write_memory_block32(self, addr, data, **attrs):
-        self._remote_probe._perform_request('write_block32', self._handle, addr, data)
+        self._remote_probe._perform_request('write_block32', self._handle, addr, data, attrs)
 
     def read_memory_block32(self, addr, size, **attrs):
-        return self._remote_probe._perform_request('read_block32', self._handle, addr, size)
+        return self._remote_probe._perform_request('read_block32', self._handle, addr, size, attrs)
 
     def write_memory_block8(self, addr, data, **attrs):
-        self._remote_probe._perform_request('write_block8', self._handle, addr, data)
+        self._remote_probe._perform_request('write_block8', self._handle, addr, data, attrs)
 
     def read_memory_block8(self, addr, size, **attrs):
-        return self._remote_probe._perform_request('read_block8', self._handle, addr, size)
+        return self._remote_probe._perform_request('read_block8', self._handle, addr, size, attrs)
 
 class TCPClientProbePlugin(Plugin):
     """@brief Plugin class for TCPClientProbePlugin."""

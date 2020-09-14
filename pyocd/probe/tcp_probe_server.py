@@ -262,12 +262,12 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                 'swo_start':            (self._probe.swo_start,             1   ), # 'swo_start', baudrate:int
                 'swo_stop':             (self._probe.swo_stop,              0   ), # 'swo_stop'
                 'swo_read':             (self._request__swo_read,           0   ), # 'swo_read' -> List[int]
-                'read_mem':             (self._request__read_mem,           3   ), # 'read_mem', handle:int, addr:int, xfer_size:int -> int
-                'write_mem':            (self._request__write_mem,          4   ), # 'write_mem', handle:int, addr:int, value:int, xfer_size:int
-                'read_block32':         (self._request__read_block32,       3   ), # 'read_block32', handle:int, addr:int, word_count:int -> List[int]
-                'write_block32':        (self._request__write_block32,      3   ), # 'write_block32', handle:int, addr:int, data:List[int]
-                'read_block8':          (self._request__read_block8,        3   ), # 'read_block8', handle:int, addr:int, word_count:int -> List[int]
-                'write_block8':         (self._request__write_block8,       3   ), # 'write_block8', handle:int, addr:int, data:List[int]
+                'read_mem':             (self._request__read_mem,           4   ), # 'read_mem', handle:int, addr:int, xfer_size:int, attrs:dict -> int
+                'write_mem':            (self._request__write_mem,          5   ), # 'write_mem', handle:int, addr:int, value:int, xfer_size:int, attrs:dict
+                'read_block32':         (self._request__read_block32,       4   ), # 'read_block32', handle:int, addr:int, word_count:int, attrs:dict -> List[int]
+                'write_block32':        (self._request__write_block32,      4   ), # 'write_block32', handle:int, addr:int, data:List[int], attrs:dict
+                'read_block8':          (self._request__read_block8,        4   ), # 'read_block8', handle:int, addr:int, word_count:int, attrs:dict -> List[int]
+                'write_block8':         (self._request__write_block8,       4   ), # 'write_block8', handle:int, addr:int, data:List[int], attrs:dict
             }
 
         # Let superclass do its thing.
@@ -444,45 +444,45 @@ class DebugProbeRequestHandler(StreamRequestHandler):
     def _request__swo_read(self):
         return list(self._probe.swo_read())
 
-    def _request__read_mem(self, handle, addr, xfer_size):
-        # 'read_mem', handle:int, addr:int, xfer_size:int -> int
+    def _request__read_mem(self, handle, addr, xfer_size, attrs):
+        # 'read_mem', handle:int, addr:int, xfer_size:int, attrs:dict -> int
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
-        return self._ap_memif_handles[handle].read_memory(addr, xfer_size, now=True)
+        return self._ap_memif_handles[handle].read_memory(addr, xfer_size, now=True, **attrs)
 
-    def _request__write_mem(self, handle, addr, value, xfer_size):
-        # 'write_mem', handle:int, addr:int, value:int, xfer_size:int
+    def _request__write_mem(self, handle, addr, value, xfer_size, attrs):
+        # 'write_mem', handle:int, addr:int, value:int, xfer_size:int, attrs:dict
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
-        self._ap_memif_handles[handle].write_memory(addr, value, xfer_size)
+        self._ap_memif_handles[handle].write_memory(addr, value, xfer_size, **attrs)
 
-    def _request__read_block32(self, handle, addr, word_count):
-        # 'read_block32', handle:int, addr:int, word_count:int -> List[int]
+    def _request__read_block32(self, handle, addr, word_count, attrs):
+        # 'read_block32', handle:int, addr:int, word_count:int, attrs:dict -> List[int]
         # TODO use base64 data
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
-        return self._ap_memif_handles[handle].read_memory_block32(addr, word_count)
+        return self._ap_memif_handles[handle].read_memory_block32(addr, word_count, **attrs)
 
-    def _request__write_block32(self, handle, addr, data):
-        # 'write_block32', handle:int, addr:int, data:List[int]
+    def _request__write_block32(self, handle, addr, data, attrs):
+        # 'write_block32', handle:int, addr:int, data:List[int], attrs:dict
         # TODO use base64 data
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
-        self._ap_memif_handles[handle].write_memory_block32(addr, data)
+        self._ap_memif_handles[handle].read_memory_block32(addr, data, **attrs)
 
-    def _request__read_block8(self, handle, addr, word_count):
-        # 'read_block8', handle:int, addr:int, word_count:int -> List[int]
+    def _request__read_block8(self, handle, addr, word_count, attrs):
+        # 'read_block8', handle:int, addr:int, word_count:int, attrs:dict -> List[int]
         # TODO use base64 data
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
-        return self._ap_memif_handles[handle].read_memory_block8(addr, word_count)
+        return self._ap_memif_handles[handle].read_memory_block8(addr, word_count, **attrs)
 
-    def _request__write_block8(self, handle, addr, data):
-        # 'write_block8', handle:int, addr:int, data:List[int]
+    def _request__write_block8(self, handle, addr, data, attrs):
+        # 'write_block8', handle:int, addr:int, data:List[int], attrs:dict
         # TODO use base64 data
         if handle not in self._ap_memif_handles:
             raise exceptions.Error("invalid handle received from remote memory access")
-        self._ap_memif_handles[handle].write_memory_block8(addr, data)
+        self._ap_memif_handles[handle].write_memory_block8(addr, data, **attrs)
 
     _PROPERTY_CONVERTERS = {
             'capabilities':                 lambda value: [v.name for v in value],
