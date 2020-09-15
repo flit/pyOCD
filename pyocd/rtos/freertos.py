@@ -50,40 +50,79 @@ V8M_MPU_SETTING_SIZE = 76
 # Create a logger for this module.
 LOG = logging.getLogger(__name__)
 
-class TargetList(object):
-    """! @brief FreeRTOS linked list."""
+class FreeRTOSLinkedList(object):
+    """! @brief Iterator for FreeRTOS linked list using capabilities.
+    
+    Linked lists in FreeRTOS have a fairly unusual structure.
+    
+    Each list node, the `ListItem_t` type, contains:
+    - Item value.
+    - Pointer to owning object, such as a TCB.
+    - Pointer to the list itself, i.e. the `List_t` object.
+    
+    Lists are double-linked and circular, with a special sentinel end node. The lists have both an item count
+    and a current index pointer that can point to any node, including the end node.
+    
+    An empty list has an item count of zero and contains only the end node. So the index will point to the
+    end node, and the end node points to itself in both directions.
+    """
 
     LIST_COUNT_OFFSET = 0
-    LIST_INDEX_OFFSET = 16
-    LIST_NODE_NEXT_OFFSET = 8
+    LIST_END_ITEM_OFFSET = 8
+    LIST_NODE_NEXT_OFFSET = 4
     LIST_NODE_OBJECT_OFFSET = 12
 
     def __init__(self, context, ptr):
+        """! @brief Constructor.
+        @param self This object.
+        @param context The debug context used to read memory.
+        @param ptr Address of the `List_t` object.
+        """
         self._context = context
         self._list = ptr
+        self._end_node = ptr + self.LIST_END_ITEM_OFFSET
+        self.count = self._context.read32(self._list + self.LIST_COUNT_OFFSET)
 
     def __iter__(self):
+        # Nothing to return if there are no items.
+        if self.count == 0:
+            return
         prev = -1
-        found = 0
-        count = self._context.read32(self._list + self.LIST_COUNT_OFFSET)
-        if count == 0:
+        found_count = 0
+
+        # Start with node that the end node's next pointer points to (i.e. the first node).
+        node = self._context.read32(self._end_node + self.LIST_NODE_NEXT_OFFSET)
+        if node == 0:
+            LOG.warning("list %#010x has unexpected NULL next pointer from end node", self._list)
             return
 
-        node = self._context.read32(self._list + selfLIST_INDEX_OFFSET)
-
-        while (node != 0) and (node != prev) and (found < count):
+        # Iterate over the list and yield objects associated with each node.
+        # Exit when we encounter the end node again, or if we have found all expected items.
+        while (node != self._end_node) and (found_count < self.count):
             try:
                 # Read the object from the node.
-                obj = self._context.read32(node + selfLIST_NODE_OBJECT_OFFSET)
+                obj = self._context.read32(node + self.LIST_NODE_OBJECT_OFFSET)
                 yield obj
-                found += 1
+                found_count += 1
 
                 # Read next list node pointer.
                 prev = node
-                node = self._context.read32(node + selfLIST_NODE_NEXT_OFFSET)
+                node = self._context.read32(node + self.LIST_NODE_NEXT_OFFSET)
+                
+                if node == 0:
+                    LOG.warning("list %#010x has unexpected NULL next pointer from node %#010x",
+                            self._list, prev)
+                    return
             except exceptions.TransferError:
-                LOG.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x), terminating list", self._list, node)
-                node = 0
+                LOG.warning("TransferError while reading list elements (list=0x%08x, node=0x%08x, "
+                            "prev=0x%08x), terminating list",
+                            self._list, node, exc_info=self._context.session.log_tracebacks)
+                return
+        
+        # Check that we found all the expected items.
+        if found_count != self.count:
+            LOG.warning("list %#010x has fewer items than expected (found %i, should have %i)",
+                    found_count, self.count)
 
 REGS_R4_R11 = ['r4', 'r5', 'r6', 'r7', 'r8', 'r9', 'r10', 'r11']
 
@@ -587,7 +626,7 @@ class FreeRTOSThreadProvider(ThreadProvider):
             listsToRead.append((self._symbols['xTasksWaitingTermination'], FreeRTOSThread.DELETED))
 
         for listPtr, state in listsToRead:
-            for threadBase in TargetList(self._target_context, listPtr):
+            for threadBase in FreeRTOSLinkedList(self._target_context, listPtr):
                 try:
                     # Don't try adding more threads than the number of threads that FreeRTOS says there are.
                     if len(newThreads) >= threadCount:
