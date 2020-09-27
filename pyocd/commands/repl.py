@@ -17,10 +17,19 @@
 
 import logging
 import os
+from pathlib import Path
 import traceback
-import atexit
+from typing import TYPE_CHECKING
+
+from prompt_toolkit import PromptSession
+from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.styles import Style
+from prompt_toolkit.history import FileHistory
 
 from ..core import (session, exceptions)
+
+if TYPE_CHECKING:
+    from .execution_context import CommandExecutionContext
 
 LOG = logging.getLogger(__name__)
 
@@ -31,64 +40,25 @@ class ToolExitException(Exception):
     """
     pass
 
-class PyocdRepl(object):
-    """@brief Read-Eval-Print-Loop for pyOCD commander."""
 
-    PROMPT = 'pyocd> '
+class PyocdReplBase:
+    """@brief Base Read-Eval-Print-Loop class for pyOCD commander."""
 
     PYOCD_HISTORY_ENV_VAR = 'PYOCD_HISTORY'
-    PYOCD_HISTORY_LENGTH_ENV_VAR = 'PYOCD_HISTORY_LENGTH'
     DEFAULT_HISTORY_FILE = ".pyocd_history"
 
-    def __init__(self, command_context):
+    def __init__(self, command_context: "CommandExecutionContext") -> None:
         self.context = command_context
 
-        # Attempt to import readline. If we import readline from the module level, it may be imported
-        # when initing non-interactive subcommands such as gdbserver, and it causes the process to be
-        # stopped if started in the background (& suffix in sh).
-        try:
-            import readline
+        # Get path to history file.
+        self._history_path = Path(os.environ.get(self.PYOCD_HISTORY_ENV_VAR,
+               Path("~") / self.DEFAULT_HISTORY_FILE)).expanduser()
 
-            # Enable readline history.
-            self._history_path = os.environ.get(self.PYOCD_HISTORY_ENV_VAR,
-                    os.path.join(os.path.expanduser("~"), self.DEFAULT_HISTORY_FILE))
-
-            # Read command history and set history length.
-            try:
-                readline.read_history_file(self._history_path)
-
-                history_len = int(os.environ.get(self.PYOCD_HISTORY_LENGTH_ENV_VAR,
-                        session.Session.get_current().options.get('commander.history_length')))
-                readline.set_history_length(history_len)
-            except (NameError, IOError) as err:
-                pass
-
-            # Install exit handler to write out the command history.
-            try:
-                atexit.register(readline.write_history_file, self._history_path)
-            except (NameError, IOError) as err:
-                pass
-        except ImportError:
-            pass
-
-    def run(self):
+    def run(self) -> None:
         """@brief Runs the REPL loop until EOF is encountered."""
-        try:
-            while True:
-                try:
-                    line = input(self.PROMPT)
-                    self.run_one_command(line)
-                except KeyboardInterrupt:
-                    print()
-        except EOFError:
-            # Print a newline when we get a Ctrl-D on a Posix system.
-            # Windows exits with a Ctrl-Z+Return, so there is no need for this.
-            if os.name != "nt":
-                print()
-        except ToolExitException:
-            pass
+        raise NotImplementedError()
 
-    def run_one_command(self, line):
+    def run_one_command(self, line: str) -> None:
         """@brief Execute a single command line and handle exceptions."""
         try:
             line = line.strip()
@@ -114,3 +84,45 @@ class PyocdRepl(object):
             print("Error:", e)
             if session.Session.get_current().log_tracebacks:
                 traceback.print_exc()
+
+
+class PromptToolkitRepl(PyocdReplBase):
+    """@brief REPL using the prompt_toolkit package."""
+
+    PROMPT = FormattedText([
+            ('class:a', "pyocd"),
+            ('class:b', "> ")
+            ])
+
+    PROMPT_STYLE = Style.from_dict({
+            'a': '#2080e0',
+            'b': '#44ff00',
+            })
+
+    def __init__(self, command_context: "CommandExecutionContext") -> None:
+        super().__init__(command_context)
+
+        # Create prompt session.
+        history = FileHistory(str(self._history_path))
+        self._prompt_session = PromptSession(
+                message=self.PROMPT,
+                style=self.PROMPT_STYLE,
+                history=history)
+
+    def run(self) -> None:
+        """@brief Runs the REPL loop until EOF is encountered."""
+        try:
+            while True:
+                try:
+                    line = self._prompt_session.prompt()
+                    self.run_one_command(line)
+                except KeyboardInterrupt:
+                    # Ignore Ctrl-C and continue the loop.
+                    pass
+        except EOFError:
+            # Just exit the REPL on Ctrl-D.
+            pass
+
+
+PyocdRepl = PromptToolkitRepl
+
