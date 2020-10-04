@@ -54,7 +54,7 @@ from .flash.eraser import FlashEraser
 from .flash.file_programmer import FileProgrammer
 from .core import options
 from .coresight.generic_mem_ap import GenericMemAPTarget
-from .utility.color_logger import ColoredLogger
+from .utility.color_logger import ColorLogger
 
 try:
     import cmsis_pack_manager
@@ -362,7 +362,7 @@ class PyOCDTool(object):
         """
         self._log_level_delta = (self._args.quiet * 10) - (self._args.verbose * 10)
         level = max(1, self._default_log_level + self._log_level_delta)
-        logging.setLoggerClass(ColoredLogger)
+        logging.setLoggerClass(ColorLogger)
         logging.getLogger('pyocd').setLevel(level)
     
     def _increase_logging(self, loggers):

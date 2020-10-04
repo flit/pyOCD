@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,17 +18,9 @@ import sys
 import logging
 import colorama
 
-BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
+from .compatibility import get_terminal_size
 
-# The background is set with 40 plus the number of the color, and the foreground with 30
-# record.color = COLOR_SEQ % (30 + COLORS[levelname])
-
-# These are the sequences need to get colored ouput
-RESET_SEQ = "\033[0m"
-COLOR_SEQ = "\033[1;%dm"
-BOLD_SEQ = "\033[1m"
-
-class ColoredLogger(logging.Logger):
+class ColorLogger(logging.Logger):
     """! @brief Logger that uses ColorFormatter."""
     
     # Default log format.
@@ -45,12 +37,6 @@ class ColoredLogger(logging.Logger):
         console.setFormatter(color_formatter)
 
         self.addHandler(console)
-
-def decode_value(value):
-    try:
-        return str(value)
-    except UnicodeDecodeError:  # pragma: no cover
-        return bytes(value).decode('utf-8')
 
 class ColorFormatter(logging.Formatter):
     """! @brief Log formatter that applies colours based on the record level."""
@@ -89,6 +75,7 @@ class ColorFormatter(logging.Formatter):
     def __init__(self, msg, use_color):
         super(ColorFormatter, self).__init__(msg)
         self._use_color = use_color
+        self._term_width = get_terminal_size()[0] # TODO: Handle resizing of terminal
     
     def format(self, record):
         # Capture and remove exc_info and stack_info so the superclass format() doesn't
