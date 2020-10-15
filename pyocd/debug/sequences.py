@@ -59,6 +59,7 @@ class Parser(object):
             optimized_tree = ConstantFolder().transform(tree)
             
             # Return the resulting tree.
+#             return tree
             return optimized_tree
         except lark.exceptions.UnexpectedInput as e:
             message = str(e) + "\n\nContext: " + e.get_context(data, 40)
@@ -181,7 +182,7 @@ class DebugSequence(DebugSequenceNode):
             connection |= 1 << 16
         scope.set('__connection', connection, True)
         
-        scope.set('__traceout', 0, True)
+        scope.set('__traceout', 1, True)
         scope.set('__FlashOp', 0, True)
         scope.set('__FlashAddr', 0, True)
         scope.set('__FlashLen', 0, True)
@@ -511,4 +512,94 @@ class Interpreter(lark.visitors.Interpreter):
                 return node.value
         elif isinstance(node, six.integer_types):
             return node
+
+# pylint: disable=invalid_name
+
+class SequenceFunctionDelegate(object):
+    """! @brief Implements functions provided by the debug sequence environment."""
+    
+    def __init__(self, session, delegate):
+        self._session = session
+        self._delegate = delegate
+    
+#     def __call__(self, *args, **kwargs):
         
+    
+    def Sequence(self, name):
+        seq = self._delegate.get_sequence_by_name(name)
+        if seq is None:
+            LOG.error("attempt to call missing sequence '%s'", name)
+            return
+        # TODO Handle _Result
+        seq.execute(self._session, self._delegate)
+    
+    def Read8(self, addr):
+        pass
+    
+    def Read16(self, addr):
+        pass
+    
+    def Read32(self, addr):
+        pass
+    
+    def Read64(self, addr):
+        pass
+
+    def ReadAP(self, addr):
+        pass
+
+    def ReadDP(self, addr):
+        pass
+    
+    def Write8(self, addr, val):
+        pass
+    
+    def Write16(self, addr, val):
+        pass
+    
+    def Write32(self, addr, val):
+        pass
+    
+    def Write64(self, addr, val):
+        pass
+    
+    def WriteAP(self, addr, val):
+        pass
+    
+    def WriteDP(self, addr, val):
+        pass
+    
+    def FlashBufferWrite(self, addr, offset, length, mode):
+        pass
+    
+    def DAP_Delay(self, delay):
+        pass
+    
+    def DAP_WriteABORT(self, value):
+        pass
+    
+    def DAP_SWJ_Pins(self, pinout, pinselect, pinwait):
+        pass
+    
+    def DAP_SWJ_Clock(self, val):
+        pass
+    
+    def DAP_SWJ_Sequence(self, cnt, val):
+        pass
+    
+    def DAP_JTAG_Sequence(self, cnt, tms, tdi):
+        pass
+    
+    def Query(self, type, message, default):
+        pass
+    
+    def QueryValue(self, message, default):
+        pass
+    
+    def Message(self, type, format, *args):
+        pass
+    
+    def LoadDebugInfo(self, file):
+        pass
+        
+# pylint: enable=invalid_name
