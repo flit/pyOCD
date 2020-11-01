@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2020 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,6 +36,9 @@ LOG = logging.getLogger(__name__)
 # - `new_value`: The new, current value of the option.
 # - `old_value`: The previous value of the option.
 OptionChangeInfo = namedtuple('OptionChangeInfo', 'new_value old_value')
+
+## Sentinel object to distinguish from None.
+_DEFAULT_SENTINEL = object()
 
 class OptionsManager(Notifier):
     """! @brief Handles session option management for a session.
@@ -126,13 +129,16 @@ class OptionsManager(Notifier):
         else:
             return None
 
-    def get(self, key):
+    def get(self, key, default=_DEFAULT_SENTINEL):
         """! @brief Return the highest priority value for the option, or its default."""
         for layer in self._layers:
             if key in layer:
                 return layer[key]
         else:
-            return self.get_default(key)
+            if default == _DEFAULT_SENTINEL:
+                return self.get_default(key)
+            else:
+                return default
     
     def set(self, key, value):
         """! @brief Set an option in the current highest priority layer."""
