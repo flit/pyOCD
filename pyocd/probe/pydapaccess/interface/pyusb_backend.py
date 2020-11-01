@@ -30,6 +30,7 @@ from .common import (
     )
 from ..dap_access_api import DAPAccessIntf
 from ... import common
+from ....core.session import Session
 
 LOG = logging.getLogger(__name__)
 
@@ -51,6 +52,9 @@ class PyUSB(Interface):
     
     did_show_no_libusb_warning = False
 
+    _USB_TRANSFER_TIMEOUT = 10 * 1000
+    _READ_TIMEOUT_RETRIES = 3
+
     def __init__(self):
         super(PyUSB, self).__init__()
         self.ep_out = None
@@ -64,6 +68,8 @@ class PyUSB(Interface):
         self.rcv_data = []
         self.read_sem = threading.Semaphore(0)
         self.packet_size = 64
+        self._usb_timeout = self._USB_TRANSFER_TIMEOUT
+        self._retry_attempts = self._READ_TIMEOUT_RETRIES
 
     def open(self):
         assert self.closed is True
@@ -118,6 +124,11 @@ class PyUSB(Interface):
         self.ep_in = ep_in
         self.dev = dev
         self.intf_number = interface_number
+        
+        # Read some session options.
+        session = Session.get_current()
+        self._usb_timeout = session.options.get('cmsis_dap.usb.timeout_ms', self._USB_TRANSFER_TIMEOUT)
+        self._read_retries = session.options.get('cmsis_dap.usb.timeout_retries', self._READ_TIMEOUT_RETRIES)
 
         # Start RX thread as the last step
         self.closed = False
@@ -141,8 +152,26 @@ class PyUSB(Interface):
         try:
             while not self.closed:
                 self.read_sem.acquire()
-                if not self.closed:
-                    self.rcv_data.append(self.ep_in.read(self.ep_in.wMaxPacketSize, 10 * 1000))
+                if self.closed:
+                    break
+                # Try up to a certain number of attempts to read until we get a successful read.
+                # This loop tries up 
+                n = 0
+                while True:
+                    try:
+                        self.rcv_data.append(self.ep_in.read(self.ep_in.wMaxPacketSize, self._usb_timeout))
+                        break
+                    except usb.core.USBError as error:
+                        # Continue trying on timeout.
+                        if error.errno == errno.ETIMEDOUT:
+                            # Only log warning once per read.
+                            if n == 0:
+                                LOG.warning("Timeout in USB read thread: %s", error)
+                            # Try a certain number of attempts before reraising the exception.
+                            if n < self._read_retries:
+                                n += 1
+                                continue
+                        raise
         finally:
             # Set last element of rcv_data to None on exit
             self.rcv_data.append(None)
