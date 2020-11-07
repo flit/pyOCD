@@ -948,6 +948,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         return self._protocol.jtag_sequence(cycles, tms, read_tdo, tdi)
 
     @locked
+    def jtag_idcode(self):
+        self.flush()
+        return self._protocol.jtag_id_code()
+
+    @locked
     def disconnect(self):
         self.flush()
         self._protocol.disconnect()
