@@ -723,6 +723,57 @@ class CortexM(Target, CoreSightCoreComponent):
             except exceptions.TransferError:
                 self.flush()
 
+    def _post_reset_recovery_test(self):
+        """! @brief Wait for the target to recover from reset, with auto-reconnect if needed."""
+        
+        # First check if we can access DP/AP registers. If this times out, then reconnect the DP and retry.
+        with timeout.Timeout(self.session.options.get('reset.dap_recover_timeout'), 0.005) as t_o:
+            attempt = 0
+            exit_loop = False
+            while not exit_loop:
+                while t_o.check():
+                    try:
+                        # Try to read our AP's IDR. If it matches the previously seen IDR, then all is well.
+                        idr = self.ap.read_reg(self.ap.address.idr_address)
+                        if idr == self.ap.idr:
+                            exit_loop = True
+                            break
+                    except exceptions.TransferError:
+                        # Ignore errors caused by flushing.
+                        try:
+                            self.flush()
+                        except exceptions.TransferError:
+                            pass
+                else:
+                    if attempt == 0:
+                        # We timed out, so attempt to recover and try again.
+                        t_o.reset()
+                        LOG.debug("DAP is not accessible after reset within timeout; attempting reconnect")
+                        self.ap.dp.connect()
+                    else:
+                        exit_loop = True
+                        LOG.warning("DAP is not accessible after reset followed by attempted recovery")
+            
+                attempt += 1
+
+        # Now wait for the system to come out of reset. Keep reading the DHCSR until
+        # we get a good response with S_RESET_ST cleared, or we time out.
+        with timeout.Timeout(self.session.options.get('reset.core_recover_timeout'), 0.01) as t_o:
+            dhcsr = None
+            while t_o.check():
+                try:
+                    dhcsr = self.read32(CortexM.DHCSR)
+                    if (dhcsr & CortexM.S_RESET_ST) == 0:
+                        break
+                except exceptions.TransferError:
+                    self.flush()
+            else:
+                # If dhcsr is None then we know that we never were able to read the register.
+                if dhcsr is None:
+                    LOG.warning("Core #%d is not accessible after reset")
+                else:
+                    LOG.debug("Core #%d did not come out of reset within timeout")
+
     def reset(self, reset_type=None):
         """! @brief Reset the core.
         
@@ -753,19 +804,9 @@ class CortexM(Target, CoreSightCoreComponent):
         if not self.call_delegate('will_reset', core=self, reset_type=reset_type):
             self._perform_reset(reset_type)
 
+        self._post_reset_recovery_test()
+
         self.call_delegate('did_reset', core=self, reset_type=reset_type)
-        
-        # Now wait for the system to come out of reset. Keep reading the DHCSR until
-        # we get a good response with S_RESET_ST cleared, or we time out.
-        with timeout.Timeout(2.0) as t_o:
-            while t_o.check():
-                try:
-                    dhcsr = self.read32(CortexM.DHCSR)
-                    if (dhcsr & CortexM.S_RESET_ST) == 0:
-                        break
-                except exceptions.TransferError:
-                    self.flush()
-                    sleep(0.01)
 
         if reset_type is not Target.ResetType.HW:
             self.session.notify(Target.Event.POST_RESET, self)
