@@ -372,7 +372,10 @@ class JLinkProbe(DebugProbe):
     @staticmethod
     def _convert_exception(exc):
         if isinstance(exc, JLinkException):
-            return exceptions.ProbeError(str(exc))
+            if str(exc) == "Unspecified error.":
+                return exceptions.TransferFaultError(str(exc))
+            else:
+                return exceptions.ProbeError(str(exc))
         elif isinstance(exc, (JLinkWriteException, JLinkReadException)):
             return exceptions.TransferFaultError(str(exc))
         else:
