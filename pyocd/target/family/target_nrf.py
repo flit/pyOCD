@@ -19,7 +19,7 @@ import logging
 from time import sleep
 
 from ...core import exceptions
-from ...coresight.ap import 
+from ...coresight.ap import AccessPort
 from ...coresight.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
 from ...utility.timeout import Timeout
