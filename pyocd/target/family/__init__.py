@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019-2021 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ from collections import namedtuple
 
 from . import target_kinetis
 from . import target_lpc5500
-from . import target_nRF52
+from . import target_nrf
 
 ## @brief Container for family matching information.
 FamilyInfo = namedtuple("FamilyInfo", "vendor matches klass")
@@ -35,5 +35,5 @@ FamilyInfo = namedtuple("FamilyInfo", "vendor matches klass")
 FAMILIES = [
     FamilyInfo("NXP",                   re.compile(r'LPC55S?[0-9]{2}.*'),   target_lpc5500.LPC5500Family  ),
     FamilyInfo("NXP",                   re.compile(r'MK[LEVWS]?.*'),    target_kinetis.Kinetis  ),
-    FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF52[0-9]+.*'),   target_nRF52.NRF52      ),
+    FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF52[0-9]+.*'),   target_nrf.NRF5         ),
     ]

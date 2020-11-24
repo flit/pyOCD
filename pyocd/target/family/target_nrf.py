@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # Copyright (c) 2019 Monadnock Systems Ltd.
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -15,12 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+from time import sleep
+
 from ...core import exceptions
+from ...coresight.ap import 
 from ...coresight.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
 from ...utility.timeout import Timeout
-import logging
-from time import sleep
 
 AHB_AP_NUM = 0x0
 CTRL_AP_NUM = 0x1
@@ -51,18 +53,16 @@ MASS_ERASE_TIMEOUT = 15.0
 
 LOG = logging.getLogger(__name__)
 
-
-class NRF52(CoreSightTarget):
+class NRF5(CoreSightTarget):
 
     VENDOR = "Nordic Semiconductor"
 
     def __init__(self, session, memory_map=None):
-        super(NRF52, self).__init__(session, memory_map)
-        self._svd_location = SVDFile.from_builtin("nrf52.svd")
+        super(NRF5, self).__init__(session, memory_map)
         self.ctrl_ap = None
 
     def create_init_sequence(self):
-        seq = super(NRF52, self).create_init_sequence()
+        seq = super(NRF5, self).create_init_sequence()
 
         # Must check whether security is enabled, and potentially auto-unlock, before
         # any init tasks that require system bus access.
