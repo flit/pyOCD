@@ -36,4 +36,5 @@ FAMILIES = [
     FamilyInfo("NXP",                   re.compile(r'LPC55S?[0-9]{2}.*'),   target_lpc5500.LPC5500Family  ),
     FamilyInfo("NXP",                   re.compile(r'MK[LEVWS]?.*'),    target_kinetis.Kinetis  ),
     FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF52[0-9]+.*'),   target_nrf.NRF5         ),
+    FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF53[0-9]+.*'),   target_nrf.NRF5         ),
     ]
