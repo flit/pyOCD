@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -17,7 +17,7 @@
 
 from ...core.memory_map import (FlashRegion, RamRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
-from ..family.target_nRF52 import NRF52
+from ..family.target_nrf import NRF5
 
 FLASH_ALGO = { 'load_address' : 0x20000000,
                'instructions' : [
@@ -42,7 +42,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'analyzer_address' : 0x20004000  # Analyzer 0x20004000..0x20004600
               }
 
-class NRF52840(NRF52):
+class NRF52840(NRF5):
 
     MEMORY_MAP = MemoryMap(
         FlashRegion(    start=0x0,         length=0x100000,     blocksize=0x1000, is_boot_memory=True,
