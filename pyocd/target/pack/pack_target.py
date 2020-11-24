@@ -133,6 +133,7 @@ class PackTargets(object):
                 # Require the regex to match the entire family name.
                 match = familyInfo.matches.match(compare_name)
                 if match and match.span() == (0, len(compare_name)):
+                    LOG.debug("using built-in family class %s for %s", familyInfo.klass.__name__, dev.part_number)
                     return familyInfo.klass
 
         # Didn't match, so return default target superclass.
