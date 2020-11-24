@@ -1136,6 +1136,8 @@ class AHB_AP(MEM_AP):
 # - [6:0] = 0x3B, Arm's JEP106 identification code
 # - [12:7] = 4, the number of JEP106 continuation codes for Arm
 AP_JEP106_ARM = 0x23b
+AP_JEP106_NORDIC = 0x144
+AP_JEP106_NXP = 0x00e
 
 # AP classes
 AP_CLASS_JTAG_AP = 0x0
@@ -1175,6 +1177,10 @@ AP_MSTRTYPE = 0x4 # The AP is known to support the MSTRTYPE field.
 # 0x14770005 AHB5-AP Used on M33. Note that M33 r0p0 incorrect fails to report this IDR.
 # 0x04770025 AHB5-AP Used on M23.
 # 0x54770002 APB-AP used on M33.
+#
+# Vendor APs:
+# 0x12880000 CTRL-AP from Nordic
+# 0x001c0000 MDM-AP from NXP
 AP_TYPE_MAP = {
 #   |JEP106        |Class              |Var|Type                    |Name      |Class
     (AP_JEP106_ARM, AP_CLASS_JTAG_AP,   0,  0):                     ("JTAG-AP", AccessPort, 0   ),
@@ -1192,4 +1198,6 @@ AP_TYPE_MAP = {
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_APB4):          ("APB4-AP", MEM_AP,     0   ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AXI5):          ("AXI5-AP", MEM_AP,     AP_ALL_TX_SZ ),
     (AP_JEP106_ARM, AP_CLASS_MEM_AP,    0,  AP_TYPE_AHB5_HPROT):    ("AHB5-AP", MEM_AP,     AP_ALL_TX_SZ ),
+#     (AP_JEP106_NORDIC,  0,              0,  0):                     ("CTRL-AP", CTRL_AP,    0   ),
+    (AP_JEP106_NXP,     0,              0,  0):                     ("MDM-AP",  AccessPort, 0   ),
     }
