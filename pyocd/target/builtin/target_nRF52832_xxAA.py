@@ -55,6 +55,7 @@ class NRF52832(NRF5):
 
     def __init__(self, session):
         super(NRF52832, self).__init__(session, self.MEMORY_MAP)
+        self._svd_location = SVDFile.from_builtin("nrf52.svd")
 
     def resetn(self):
         """
