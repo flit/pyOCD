@@ -88,8 +88,6 @@ BUILTIN_OPTIONS = [
         "Number of seconds to hold hardware reset asserted. Default is 0.1 s (100 ms)."),
     OptionInfo('reset.post_delay', float, 0.1,
         "Number of seconds to delay after a reset is issued. Default is 0.1 s (100 ms)."),
-    OptionInfo('reset.halt_timeout', float, 2.0,
-        "Timeout for waiting for the core to halt after a reset and halt. Default is 2.0 s."),
     OptionInfo('reset.dap_recover_timeout', float, 5.0,
         "Timeout for waiting for the DAP be be accessible after reset. If the timeout lapses, an attempt will be "
         "made to reconnect the DP and retry. Default is 5.0 s."),

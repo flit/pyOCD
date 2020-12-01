@@ -205,14 +205,14 @@ class SoCTarget(Target, GraphNode):
     def remove_watchpoint(self, addr, size, type):
         return self.selected_core.remove_watchpoint(addr, size, type)
 
-    def reset(self, reset_type=None):
+    def reset(self, reset_type=None, halt=False):
         # Perform a hardware reset if there is not a core.
         if self.selected_core is None:
             # Use the probe to reset. (We can't use the DP here because that's a class layering violation;
             # the DP is only created by the CoreSightTarget subclass.)
             self.session.probe.reset()
             return
-        self.selected_core.reset(reset_type)
+        self.selected_core.reset(reset_type, halt)
 
     def reset_and_halt(self, reset_type=None):
         return self.selected_core.reset_and_halt(reset_type)

@@ -726,7 +726,6 @@ class CortexM(Target, CoreSightCoreComponent):
 
     def _post_reset_recovery_test(self):
         """! @brief Wait for the target to recover from reset, with auto-reconnect if needed."""
-        
         # First check if we can access DP/AP registers. If this times out, then reconnect the DP and retry.
         with timeout.Timeout(self.session.options.get('reset.dap_recover_timeout'), 0.005) as t_o:
             attempt = 0
@@ -752,8 +751,8 @@ class CortexM(Target, CoreSightCoreComponent):
                         LOG.debug("DAP is not accessible after reset within timeout; attempting reconnect")
                         self.ap.dp.connect()
                     else:
-                        exit_loop = True
                         LOG.warning("DAP is not accessible after reset followed by attempted recovery")
+                        return False
             
                 attempt += 1
 
@@ -774,8 +773,12 @@ class CortexM(Target, CoreSightCoreComponent):
                     LOG.warning("Core #%d is not accessible after reset")
                 else:
                     LOG.debug("Core #%d did not come out of reset within timeout")
+                return False
+        
+        # Passed both reset recovery tests.
+        return True
 
-    def reset(self, reset_type=None):
+    def reset(self, reset_type=None, halt=False):
         """! @brief Reset the core.
         
         The reset method is selectable via the reset_type parameter as well as the reset_type
@@ -789,13 +792,22 @@ class CortexM(Target, CoreSightCoreComponent):
         emulated software reset.
         
         After a call to this function, the core is running.
+        
+        @param self The CortexM object.
+        @param reset_type One of the @ref pyocd.core.target.Target.ResetType "ResetType" enumerators.
+        @param halt Whether to perform a halting reset.
         """
         reset_type = self._get_actual_reset_type(reset_type)
 
-        LOG.debug("reset, core %d, type=%s", self.core_number, reset_type.name)
+        LOG.debug("reset, core %d, type=%s, halt=%s", self.core_number, reset_type.name, halt)
 
         self.session.notify(Target.Event.PRE_RESET, self)
 
+        # Set up reset catch.
+        if halt:
+            self.set_reset_catch(reset_type)
+
+        # Advance run token.
         self._run_token += 1
 
         # Give the delegate a chance to overide reset. If the delegate returns True, then it
@@ -803,9 +815,30 @@ class CortexM(Target, CoreSightCoreComponent):
         if not self.call_delegate('will_reset', core=self, reset_type=reset_type):
             self._perform_reset(reset_type)
 
-        self._post_reset_recovery_test()
+        did_recover = self._post_reset_recovery_test()
 
         self.call_delegate('did_reset', core=self, reset_type=reset_type)
+
+        # Restore to original state.
+        if halt:
+            self.clear_reset_catch(reset_type)
+
+            # The _post_reset_recovery_test() call above assures that either the core has come out of reset, as
+            # indicated by DHCSR.S_RESET_ST, or we timed out. Now we check that the core was actually halted. This
+            # should be instantaneous when the core comes out of reset, so there is no test loop or timeout.
+            if did_recover:
+                if self.get_state() == Target.State.HALTED:
+                    # Make sure the thumb bit is set in XPSR in case the reset handler
+                    # points to an invalid address. Only do this if the core is actually halted, otherwise we
+                    # can't access XPSR. This is required to prevent lockup in cases such as running a flash algo
+                    # from RAM, though arguably it shouldn't be done in all cases because it may mask the issue in
+                    # user boot code.
+                    xpsr = self.read_core_register('xpsr')
+                    if xpsr & self.XPSR_THUMB == 0:
+                        LOG.warning("correcting invalid T bit from reset vector on core %d; setting", self.core_number)
+                        self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
+                else:
+                    LOG.debug("reset halt failed to halt core %d", self.core_number)
 
         self.session.notify(Target.Event.POST_RESET, self)
 
@@ -839,31 +872,7 @@ class CortexM(Target, CoreSightCoreComponent):
 
     def reset_and_halt(self, reset_type=None):
         """! @brief Perform a reset and stop the core on the reset handler."""
-        # Set up reset catch.
-        self.set_reset_catch(reset_type)
-
-        # Perform the reset.
-        self.reset(reset_type)
-
-        # wait until the unit resets
-        with timeout.Timeout(self.session.options.get('reset.halt_timeout')) as t_o:
-            while t_o.check():
-                if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
-                    break
-                sleep(0.01)
-            else:
-                LOG.warning("Timed out waiting for target to complete reset (state is %s)", self.get_state().name)
-
-        # Make sure the thumb bit is set in XPSR in case the reset handler
-        # points to an invalid address. Only do this if the core is actually halted, otherwise we
-        # can't access XPSR.
-        if self.get_state() == Target.State.HALTED:
-            xpsr = self.read_core_register('xpsr')
-            if xpsr & self.XPSR_THUMB == 0:
-                self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
-
-        # Restore to original state.
-        self.clear_reset_catch(reset_type)
+        self.reset(reset_type, halt=True)
 
     def get_state(self):
         dhcsr = self.read_memory(CortexM.DHCSR)

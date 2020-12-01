@@ -280,7 +280,7 @@ class Target(MemoryInterface):
     def remove_watchpoint(self, addr, size, type):
         raise NotImplementedError()
 
-    def reset(self, reset_type=None):
+    def reset(self, reset_type=None, halt=False):
         raise NotImplementedError()
 
     def reset_and_halt(self, reset_type=None):
