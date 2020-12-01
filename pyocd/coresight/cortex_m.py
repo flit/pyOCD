@@ -832,7 +832,8 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         LOG.debug("reset core %d, type=%s, halt=%s", self.core_number, reset_type.name, halt)
 
-        self.session.notify(Target.Event.PRE_RESET, self)
+        event_data = Target.ResetEventData(halting=halt, reset_type=reset_type)
+        self.session.notify(Target.Event.PRE_RESET, self, event_data)
 
         # Set up reset catch.
         if halt:
@@ -881,7 +882,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
                 else:
                     LOG.debug("reset halt failed to halt core %d", self.core_number)
 
-        self.session.notify(Target.Event.POST_RESET, self)
+        self.session.notify(Target.Event.POST_RESET, self, event_data)
 
     def set_reset_catch(self, reset_type):
         """@brief Prepare to halt core on reset."""

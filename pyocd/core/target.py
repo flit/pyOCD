@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2019 Arm Limited
+# Copyright (c) 2006-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -16,7 +16,7 @@
 # limitations under the License.
 
 from enum import Enum
-from typing import (Any, Callable, List, Optional, Sequence, TYPE_CHECKING)
+from typing import (Any, Callable, List, NamedTuple, Optional, Sequence, TYPE_CHECKING)
 
 from .memory_interface import MemoryInterface
 from .memory_map import MemoryMap
@@ -146,13 +146,24 @@ class Target(MemoryInterface):
         # Associated data is a HaltReason enum.
         POST_HALT = 6
         ## Sent before executing a reset operation.
+        #
+        # Associated data is a @ref pyocd.core.target.Target.ResetEventData "ResetEventData" object.
         PRE_RESET = 7
         ## Sent after the target has been reset.
+        #
+        # Associated data is a @ref pyocd.core.target.Target.ResetEventData "ResetEventData" object.
         POST_RESET = 8
         ## Sent before programming target flash.
         PRE_FLASH_PROGRAM = 9
         ## Sent after target flash has been reprogrammed.
         POST_FLASH_PROGRAM = 10
+
+    class ResetEventData(NamedTuple):
+        """! @brief Associated data for pre- and post-reset events."""
+        ## Boolean indicating whether the reset is a halting reset.
+        halting: bool
+        ## One of the ResetType enumerators.
+        reset_type: "Target.ResetType"
 
     class RunType(Enum):
         """Run type for run notifications.
