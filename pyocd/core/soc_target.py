@@ -243,8 +243,14 @@ class SoCTarget(TargetGraphNode):
     def get_breakpoint_type(self, addr: int) -> Optional[Target.BreakpointType]:
         return self.selected_core_or_raise.get_breakpoint_type(addr)
 
+    def set_watchpoint(self, addr, size, type):
+        return self.selected_core.set_watchpoint(addr, size, type)
+
     def remove_breakpoint(self, addr: int) -> None:
         return self.selected_core_or_raise.remove_breakpoint(addr)
+
+    def remove_watchpoint(self, addr, size, type):
+        return self.selected_core.remove_watchpoint(addr, size, type)
 
     def set_watchpoint(self, addr: int, size: int, type: Target.WatchpointType) -> bool:
         return self.selected_core_or_raise.set_watchpoint(addr, size, type)
@@ -252,7 +258,7 @@ class SoCTarget(TargetGraphNode):
     def remove_watchpoint(self, addr: int, size: Optional[int], type: Optional[Target.WatchpointType]) -> None:
         return self.selected_core_or_raise.remove_watchpoint(addr, size, type)
 
-    def reset(self, reset_type: Optional[Target.ResetType] = None) -> None:
+    def reset(self, reset_type: Optional[Target.ResetType] = None, halt: bool = False) -> None:
         # Use the probe to reset to perform a hardware reset if there is not a core.
         if self.selected_core is None:
             # Use the probe to reset. (We can't use the DP here because that's a class layering violation;
@@ -260,7 +266,7 @@ class SoCTarget(TargetGraphNode):
             assert self.session.probe
             self.session.probe.reset()
             return
-        self.selected_core_or_raise.reset(reset_type)
+        self.selected_core_or_raise.reset(reset_type, halt)
 
     def reset_and_halt(self, reset_type: Optional[Target.ResetType] = None) -> None:
         return self.selected_core_or_raise.reset_and_halt(reset_type)
