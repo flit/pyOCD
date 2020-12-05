@@ -23,6 +23,7 @@ import os
 from pathlib import Path
 import weakref
 from inspect import (getfullargspec, signature)
+import threading
 from typing import (Any, Callable, Generator, Sequence, Union, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
 
 from . import exceptions
@@ -160,6 +161,7 @@ class Session(Notifier):
         self._options = OptionsManager()
         self._gdbservers: Dict[int, "GDBServer"] = {}
         self._probeserver: Optional["DebugProbeServer"] = None
+        self._thread_locals = threading.local()
 
         # Set this session on the probe, if we were given a probe.
         if probe is not None:
@@ -383,6 +385,16 @@ class Session(Notifier):
     def log_tracebacks(self) -> bool:
         """@brief Quick access to debug.traceback option since it is widely used."""
         return cast(bool, self.options.get('debug.traceback'))
+    
+    @property
+    def thread_context(self) -> threading.local:
+        """@brief Returns an object for storing thread-local data.
+        
+        The returned object is a threading.local instance associated with the given session. Any attributes
+        set on the object have different values for each thread. The intended use is to store temporary private
+        context for calls between disconnected layers (thus on the same thread).
+        """
+        return self._thread_locals
 
     def __enter__(self) -> "Session":
         assert self._probe is not None

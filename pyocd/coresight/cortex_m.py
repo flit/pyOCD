@@ -870,15 +870,23 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             # should be instantaneous when the core comes out of reset, so there is no test loop or timeout.
             if did_recover:
                 if self.get_state() == Target.State.HALTED:
-                    # Make sure the thumb bit is set in XPSR in case the reset handler
-                    # points to an invalid address. Only do this if the core is actually halted, otherwise we
-                    # can't access XPSR. This is required to prevent lockup in cases such as running a flash algo
-                    # from RAM, though arguably it shouldn't be done in all cases because it may mask the issue in
-                    # user boot code.
-                    xpsr = self.read_core_register('xpsr')
-                    if xpsr & self.XPSR_THUMB == 0:
-                        LOG.warning("correcting invalid T bit from reset vector on core %d; setting", self.core_number)
-                        self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
+                    # Make sure the thumb bit is set in XPSR in case the reset handler points to an invalid
+                    # address. Only do this if the core is actually halted, otherwise we can't access XPSR.
+                    # This is required to prevent lockup in cases such as running a flash algo from RAM,
+                    # though arguably it shouldn't be done in all cases because it may mask the issue in user
+                    # boot code, thus the option to give the user control over the feature. The
+                    # cortex_m_force_correct_t_bit thread context attribute is used by the Flash class to
+                    # ensure that T-bit correction is enabled when it loads a flash algo, otherwise it may not
+                    # be possible to program flash on a device with invalid flash contents.
+                    if self.session.options.get('cortex_m.auto_correct_t_bit') \
+                            or getattr(self.session.thread_context, 'cortex_m_force_correct_t_bit', False):
+                        xpsr = self.read_core_register('xpsr')
+                        if xpsr & self.XPSR_THUMB == 0:
+                            # If the force correct flag is enabled, don't log a warning since it is during
+                            # flash programming.
+                            if not getattr(self.session.thread_context, 'cortex_m_force_correct_t_bit', False):
+                                LOG.warning("correcting invalid T bit from reset vector on core %d; setting", self.core_number)
+                            self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
                 else:
                     LOG.debug("reset halt failed to halt core %d", self.core_number)
 

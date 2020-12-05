@@ -92,6 +92,13 @@ Controls how pyOCD connects to the target. One of 'halt', 'pre-reset', 'under-re
 </ul>
 </td></tr>
 
+<tr><td>cortex_m.auto_correct_t_bit</td>
+<td>bool</td>
+<td>True</td>
+<td>
+Controls auto-correction of XPSR T-bit for Cortex-M cores.
+</td></tr>
+
 <tr><td>cpu.step.instruction.timeout</td>
 <td>float</td>
 <td>0.0</td>

@@ -234,7 +234,11 @@ class Flash:
             TRACE.debug("algo init and load to %#010x", self.flash_algo['load_address'])
 
             if reset:
-                self.target.reset_and_halt()
+                try:
+                    self.target.session.thread_context.cortex_m_force_correct_t_bit = True
+                    self.target.reset_and_halt()
+                finally:
+                    self.target.session.thread_context.cortex_m_force_correct_t_bit = False
             self.prepare_target()
 
             # Load flash algo code into target RAM.
