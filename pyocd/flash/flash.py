@@ -232,7 +232,11 @@ class Flash(object):
         # Setup target for running the flash algo.
         if not self._did_prepare_target:
             if reset:
-                self.target.reset_and_halt(Target.ResetType.SW)
+                try:
+                    self.target.session.thread_context.cortex_m_force_correct_t_bit = True
+                    self.target.reset_and_halt(Target.ResetType.SW)
+                finally:
+                    self.target.session.thread_context.cortex_m_force_correct_t_bit = False
             self.prepare_target()
 
             # Load flash algo code into target RAM.

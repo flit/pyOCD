@@ -20,6 +20,7 @@ import six
 import yaml
 import os
 import weakref
+import threading
 
 # inspect.getargspec is deprecated in Python 3.
 try:
@@ -142,6 +143,7 @@ class Session(Notifier):
         self._options = OptionsManager()
         self._gdbservers = {}
         self._probeserver = None
+        self._thread_locals = threading.local()
         
         # Set this session on the probe, if we were given a probe.
         if probe is not None:
@@ -335,6 +337,16 @@ class Session(Notifier):
     def log_tracebacks(self):
         """! @brief Quick access to debug.traceback option since it is widely used."""
         return self.options.get('debug.traceback')
+    
+    @property
+    def thread_context(self):
+        """! @brief Returns an object for storing thread-local data.
+        
+        The returned object is a threading.local instance associated with the given session. Any attributes
+        set on the object have different values for each thread. The intended use is to store temporary private
+        context for calls between disconnected layers (thus on the same thread).
+        """
+        return self._thread_locals
 
     def __enter__(self):
         assert self._probe is not None
