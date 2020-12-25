@@ -45,6 +45,21 @@ class SWJSequenceSender(object):
             self._switch_to_jtag()
         else:
             assert False, "unhandled protocol %s in SWJSequenceSender" % protocol
+    
+    def jtag_enter_test_logic_reset(self):
+        """! @brief Execute at least >5 TCK cycles with TMS high to enter the Test-Logic-Reset state.
+        
+        The line_reset() method can be used instead of this method, but takes a little longer to send.
+        """
+        self._probe.swj_sequence(8, 0xff)
+    
+    def line_reset(self):
+        """! @brief Execute a line reset for both SWD and JTAG.
+        
+        For JTAG, >=5 TCK cycles with TMS high enters the Test-Logic-Reset state.<br/>
+        For SWD, >=50 cycles with SWDIO high performs a line reset.
+        """
+        self._probe.swj_sequence(51, 0xffffffffffffff)
 
     def _switch_to_swd(self):
         """! @brief Send SWJ sequence to select SWD."""
@@ -52,7 +67,7 @@ class SWJSequenceSender(object):
             LOG.debug("Sending SWJ sequence to select SWD; using dormant state")
             
             # Ensure current debug interface is in reset state
-            self._probe.swj_sequence(51, 0xffffffffffffff)
+            self.line_reset()
             
             # Send all this in one transfer:
             # Select Dormant State (from JTAG), 0xb3bbbbbaff
@@ -62,21 +77,21 @@ class SWJSequenceSender(object):
             self._probe.swj_sequence(188, 0x01a019bc0ea2e3ddafe986852d956209f392ffb3bbbbbaff)
            
             # Enter SWD Line Reset State
-            self._probe.swj_sequence(51, 0xffffffffffffff)  # > 50 cycles SWDIO/TMS High
-            self._probe.swj_sequence(8,  0x00)                # At least 2 idle cycles (SWDIO/TMS Low)
+            self.line_reset()                   # > 50 cycles SWDIO/TMS High
+            self._probe.swj_sequence(8,  0x00)  # At least 2 idle cycles (SWDIO/TMS Low)
         else:
             LOG.debug("Sending deprecated SWJ sequence to select SWD")
             
             # Ensure current debug interface is in reset state
-            self._probe.swj_sequence(51, 0xffffffffffffff)
+            self.line_reset()
             
             # Execute SWJ-DP Switch Sequence JTAG to SWD (0xE79E)
             # Change if SWJ-DP uses deprecated switch code (0xEDB6)
             self._probe.swj_sequence(16, 0xe79e)
             
             # Enter SWD Line Reset State
-            self._probe.swj_sequence(51, 0xffffffffffffff)  # > 50 cycles SWDIO/TMS High
-            self._probe.swj_sequence(8,  0x00)                # At least 2 idle cycles (SWDIO/TMS Low)
+            self.line_reset()                   # > 50 cycles SWDIO/TMS High
+            self._probe.swj_sequence(8,  0x00)  # At least 2 idle cycles (SWDIO/TMS Low)
     
     def _switch_to_jtag(self):
         """! @brief Send SWJ sequence to select JTAG."""
@@ -84,7 +99,7 @@ class SWJSequenceSender(object):
             LOG.debug("Sending SWJ sequence to select JTAG ; using dormant state")
             
             # Ensure current debug interface is in reset state
-            self._probe.swj_sequence(51, 0xffffffffffffff)
+            self.line_reset()
             
             # Select Dormant State (from SWD)
             # At least 8 cycles SWDIO/TMS HIGH, 0xE3BC
@@ -93,17 +108,17 @@ class SWJSequenceSender(object):
             self._probe.swj_sequence(188, 0x00a019bc0ea2e3ddafe986852d956209f392ffe3bc)
            
             # Ensure JTAG interface is reset
-            self._probe.swj_sequence(6, 0x3f)
+            self.jtag_enter_test_logic_reset()
         else:
             LOG.debug("Sending deprecated SWJ sequence to select JTAG")
             
             # Ensure current debug interface is in reset state
-            self._probe.swj_sequence(51, 0xffffffffffffff)
+            self.line_reset()
             
             # Execute SWJ-DP Switch Sequence SWD to JTAG (0xE73C)
             # Change if SWJ-DP uses deprecated switch code (0xAEAE)
             self._probe.swj_sequence(16, 0xe73c)
             
             # Ensure JTAG interface is reset
-            self._probe.swj_sequence(6, 0x3f)
+            self.jtag_enter_test_logic_reset()
     
