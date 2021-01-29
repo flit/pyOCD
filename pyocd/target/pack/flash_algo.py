@@ -254,10 +254,15 @@ class PackFlashInfo(object):
 
     def __init__(self, elf):
         dev_info = elf.symbol_decoder.get_symbol_for_name("FlashDevice")
-        info_start = dev_info.address
-        info_size = struct.calcsize(self.FLASH_DEVICE_STRUCT)
-        data = elf.read(info_start, self.FLASH_DEVICE_STRUCT_SIZE)
-        values = struct.unpack(self.FLASH_DEVICE_STRUCT, data)
+        if dev_info is None:
+            values = [0] * 10
+            values[1] = b""
+            self.sector_info_list = []
+        else:
+            info_start = dev_info.address
+            info_size = struct.calcsize(self.FLASH_DEVICE_STRUCT)
+            data = elf.read(info_start, self.FLASH_DEVICE_STRUCT_SIZE)
+            values = struct.unpack(self.FLASH_DEVICE_STRUCT, data)
 
         self.version = values[0]
         self.name = values[1].strip(b"\x00")
@@ -269,8 +274,9 @@ class PackFlashInfo(object):
         self.prog_timeout_ms = values[8]
         self.erase_timeout_ms = values[9]
 
-        sector_gen = self._sector_and_sz_itr(elf, info_start + info_size)
-        self.sector_info_list = list(sector_gen)
+        if dev_info is not None:
+            sector_gen = self._sector_and_sz_itr(elf, info_start + info_size)
+            self.sector_info_list = list(sector_gen)
 
     def __str__(self):
         desc =  "Flash Device:" + os.linesep
