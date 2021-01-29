@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018-2019 Arm Limited
+# Copyright (c) 2006-2013,2018-2021 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,7 @@
 
 import array
 from .dap_access_api import DAPAccessIntf
+from ...utility import compatibility
 
 class Command:
     DAP_INFO = 0x00
@@ -73,12 +74,22 @@ INTEGER_INFOS = [
     DAPAccessIntf.ID.MAX_PACKET_SIZE
     ]
 
+class CMSISDAPVersion:
+    V1_1_0 = 0x10100
+    V1_2_0 = 0x10200
+    V2_0_0 = 0x20000
+
 DAP_DEFAULT_PORT = 0
 DAP_SWD_PORT = 1
 DAP_JTAG_PORT = 2
 
 DAP_LED_CONNECT = 0
 DAP_LED_RUNNING = 1
+
+# Masks for DAP_SWD_SEQUENCE command.
+class DAPSWDSequence:
+    MODE_MASK = 0x80 # bit [7]: 0=output, 1=input
+    CYCLES_MASK = 0x1f # bits [5:0]: number of TCK cycles
 
 # Options for DAP_SWO_TRANSPORT command.
 class DAPSWOTransport:
@@ -319,6 +330,54 @@ class CMSISDAPProtocol(object):
             raise DAPAccessIntf.CommandError("DAP_SWD_CONFIGURE failed")
 
         return resp[1]
+
+    def swd_sequence(self, sequences):
+        """! @brief Send the DAP_SWD_Sequence command.
+        
+        Each sequence is a tuple with 1 or 2 members:
+        - 0: sequence info byte
+            - bit [7]: mode, 0=output, 1=input
+            - bit [6]: reserved
+            - bits [5:0]: number of TCK cycles from 1-64, with 64 encoded as 0
+        - 1: (only present if element 0 bit 7 == 0, for output mode) bytes object of data to send,
+            one bit per TCK cycle, transmitted LSB first
+        
+        @param self
+        @param sequences A sequence of sequence description tuples as described above.
+        
+        @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
+            sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
+        """
+        cmd = [Command.DAP_SWD_SEQUENCE]
+        cmd.append(len(sequences))
+        for seq in sequences:
+            info = seq[0]
+            cmd.append(info)
+            if (info & DAPSWDSequence.MODE_MASK) == 0:
+                cmd += list(compatibility.iter_int_bytes(seq[1]))
+        self.interface.write(cmd)
+
+        resp = self.interface.read()
+        if resp[0] != Command.DAP_SWD_SEQUENCE:
+            # Response is to a different command
+            raise DAPAccessIntf.DeviceError("expected DAP_SWD_CONFIGURE")
+
+        if resp[1] != DAP_OK:
+            # DAP SWD Configure failed
+            raise DAPAccessIntf.CommandError("DAP_SWD_CONFIGURE failed")
+
+        result = []
+        offset = 2
+        for seq in sequences:
+            info = seq[0]
+            if (info & DAPSWDSequence.MODE_MASK) != 0:
+                tck_count = info & DAPSWDSequence.CYCLES_MASK
+                byte_count = (tck_count + 7) // 8
+                data = resp[offset:offset + byte_count]
+                offset += byte_count
+                result.append(data)
+
+        return resp[1], result
 
     def swj_sequence(self, length, bits):
         assert 0 <= length <= 256

@@ -59,6 +59,9 @@ class DebugProbe(object):
         ## @brief whether the probe automatically handles access of banked DAP registers.
         MANAGED_DPBANKSEL = 5
     
+        ## @brief Whether the probe supports the swd_sequence() API.
+        SWD_SEQUENCE = 6
+
     @classmethod
     def get_all_connected_probes(cls, unique_id=None, is_explicit=False):
         """! @brief Returns a list of DebugProbe instances.
@@ -221,6 +224,25 @@ class DebugProbe(object):
         @param bits Integer of the bit values to send on SWDIO/TMS. The LSB is transmitted first.
         """
         pass
+
+    def swd_sequence(self, sequences):
+        """! @brief Send a sequences of bits on the SWDIO signal.
+        
+        Each sequence is a tuple with 1 or 2 members:
+        - 0: sequence info byte
+            - bit [7]: mode, 0=output, 1=input
+            - bit [6]: reserved
+            - bits [5:0]: number of TCK cycles from 1-64, with 64 encoded as 0
+        - 1: (only present if element 0 bit 7 == 0, for output mode) bytes object of data to send,
+            one bit per TCK cycle, transmitted LSB first
+        
+        @param self
+        @param sequences A sequence of sequence description tuples as described above.
+        
+        @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
+            sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
+        """
+        raise NotImplementedError()
 
     def set_clock(self, frequency):
         """! @brief Set the frequency for JTAG and SWD in Hz.

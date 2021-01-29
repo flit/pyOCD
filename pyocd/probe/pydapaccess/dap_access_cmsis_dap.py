@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018-2020 Arm Limited
+# Copyright (c) 2006-2013,2018-2021 Arm Limited
 # Copyright (c) 2020 Koji Kitayama
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -35,6 +35,7 @@ from .cmsis_dap_core import (
     DAPSWOControl,
     DAPSWOStatus,
     DAPTransferResponse,
+    CMSISDAPVersion,
     )
 from ...core import session
 from ...utility.concurrency import locked
@@ -560,6 +561,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         self._commands_to_read = None
         self._command_response_buf = None
         self._swo_status = None
+        self._has_swd_sequence = None
+        self._cmsis_dap_version = CMSISDAPVersion.V1_1_0
 
     @property
     def vendor_name(self):
@@ -573,6 +576,10 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def vidpid(self):
         """! @brief A tuple of USB VID and PID, in that order."""
         return self._vidpid
+
+    @property
+    def has_swd_sequence(self):
+        return self._has_swd_sequence
     
     def lock(self):
         """! @brief Lock the interface."""
@@ -597,9 +604,18 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._packet_count = self._protocol.dap_info(self.ID.MAX_PACKET_COUNT)
 
         # Log probe's firmware version.
-        fw_version = self._protocol.dap_info(self.ID.FW_VER)
-        if fw_version:
-            LOG.debug("CMSIS-DAP probe %s firmware version: %s", self._unique_id, fw_version)
+        fw_version_str = self._protocol.dap_info(self.ID.FW_VER)
+        if fw_version_str:
+            LOG.debug("CMSIS-DAP probe %s firmware version: %s", self._unique_id, fw_version_str)
+        fw_version = fw_version_str.split('.')
+        if len(fw_version) > 1:
+            # Convert the version to a single BCD value for easy comparison.
+            # 1.2.3 will be converted to 0x10203, 2.0.0 to 0x20000.
+            self._cmsis_dap_version = (fw_version[0] << 16) | (fw_version_str[1] << 8) | fw_version_str[2]
+        elif len(fw_version) == 1:
+            # Deal with DAPLink broken version.
+            if fw_version_str in ("0254", "0255", "0256"):
+                self._cmsis_dap_version = CMSISDAPVersion.V2_0_0
 
         self._interface.set_packet_count(self._packet_count)
         self._packet_size = self._protocol.dap_info(self.ID.MAX_PACKET_SIZE)
@@ -611,6 +627,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         else:
             self._swo_buffer_size = 0
         self._swo_status = SWOStatus.DISABLED
+
+        self._has_swd_sequence = self._cmsis_dap_version >= CMSISDAPVersion.V1_2_0
 
         self._init_deferred_buffers()
 
@@ -717,6 +735,11 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     def swj_sequence(self, length, bits):
         self.flush()
         self._protocol.swj_sequence(length, bits)
+
+    @locked
+    def swd_sequence(self, sequences):
+        self.flush()
+        self._protocol.swd_sequence(sequences)
 
     @locked
     def jtag_sequence(self, cycles, tms, read_tdo, tdi):
