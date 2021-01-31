@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2021 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,12 +22,18 @@ PY3 = sys.version_info[0] == 3
 
 # iter_single_bytes() returns an iterator over a bytes object that produces
 # single-byte bytes objects for each byte in the passed in value. Normally on
-# py3 iterating over a bytes will give you ints for each byte, while on py3
+# py3 iterating over a bytes will give you ints for each byte, while on py2
 # you'll get single-char strs.
 if PY3:
-    iter_single_bytes = functools.partial(map, lambda v: bytes((v,))) # pylint: disable=invalid-name
+    def iter_single_bytes(b):
+        return (bytes((v,)) for v in b)
+
+    iter_int_bytes = iter # pylint: disable=invalid-name
 else:
     iter_single_bytes = iter # pylint: disable=invalid-name
+
+    def iter_int_bytes(b):
+        return (ord(v) for v in b)
 
 # to_bytes_safe() converts a unicode string to a bytes object by encoding as
 # latin-1. It will also accept a value that is already a bytes object and
@@ -64,7 +70,6 @@ else:
 if PY3:
     def byte_list_to_bytes(data):
         """! @brief Convert a sequence of integers (bytes) to a bytes object."""
-        # This bizarre construction
         return bytes(data)
 else:
     def byte_list_to_bytes(data):
