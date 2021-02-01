@@ -119,6 +119,9 @@ class RP2040(CoreSightTarget):
     def __init__(self, session):
         super(RP2040, self).__init__(session, self.MEMORY_MAP)
 
+        # Disable the SWJ sequence.
+        session.options['dap_swj_enable'] = False
+
     def create_init_sequence(self):
         seq = super(RP2040, self).create_init_sequence()
         
@@ -167,7 +170,19 @@ class RP2040(CoreSightTarget):
             
             # DP TARGETSEL value
             # output 32 + 1 cycles
-            (0x21, targetsel_data)
+            (0x21, targetsel_data),
+
+            # 2 idle cycles
+            (0x82,),
             ]
         probe.swd_sequence(seqs)
-        
+
+        DP_IDR = 0x00
+        dpidr = probe.read_dp(DP_IDR, now=True)
+        dp_partno = (dpidr & DPIDR_PARTNO_MASK) >> DPIDR_PARTNO_SHIFT
+        dp_version = (dpidr & DPIDR_VERSION_MASK) >> DPIDR_VERSION_SHIFT
+        dp_revision = (dpidr & DPIDR_REVISION_MASK) >> DPIDR_REVISION_SHIFT
+        is_mindp = (dpidr & DPIDR_MIN_MASK) != 0
+        LOG.info("DP IDR after writing TARGETSEL: 0x%08x", dpidr) #(dpidr, dp_partno, dp_version, dp_revision, is_mindp)
+
+
