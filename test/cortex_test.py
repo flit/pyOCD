@@ -114,7 +114,7 @@ def cortex_test(board_id):
         addr_invalid = 0x3E000000 # Last 16MB of ARM SRAM region - typically empty
         expect_invalid_access_to_fail = test_params['error_on_invalid_access']
 
-        memory_map = board.target.get_memory_map()
+        memory_map = board.target.memory_map
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
 

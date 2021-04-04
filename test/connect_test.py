@@ -87,7 +87,7 @@ def connect_test(board):
     live_session = ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options())
     live_session.open()
     live_board = live_session.board
-    memory_map = board.target.get_memory_map()
+    memory_map = board.target.memory_map
     rom_region = memory_map.get_boot_memory()
     rom_start = rom_region.start
 

@@ -306,9 +306,6 @@ class Target(MemoryInterface, DelegateHavingMixIn):
     def is_halted(self) -> bool:
         return self.get_state() == Target.State.HALTED
 
-    def get_memory_map(self) -> MemoryMap:
-        return self.memory_map
-
     def set_vector_catch(self, enable_mask: int) -> None:
         raise NotImplementedError()
 
