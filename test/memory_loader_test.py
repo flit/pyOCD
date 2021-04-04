@@ -75,7 +75,7 @@ def memory_loader_test(board_id):
         test_params = get_target_test_params(session)
         session.probe.set_clock(test_params['test_clock'])
 
-        memory_map = board.target.get_memory_map()
+        memory_map = board.target.memory_map
         boot_region = memory_map.get_boot_memory()
         print(boot_region)
         boot_start_addr = boot_region.start

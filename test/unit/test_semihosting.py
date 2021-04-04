@@ -63,7 +63,7 @@ def semihostagent(ctx, request):
 
 @pytest.fixture(scope='module')
 def ramrgn(tgt):
-    map = tgt.get_memory_map()
+    map = tgt.memory_map
     for rgn in map:
         if rgn.is_ram:
             return rgn

@@ -67,7 +67,7 @@ def user_script_test(board_id):
         test_params = get_target_test_params(session)
         session.probe.set_clock(test_params['test_clock'])
 
-        memory_map = target.get_memory_map()
+        memory_map = target.memory_map
         boot_region = memory_map.get_boot_memory()
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         binary_file = get_test_binary_path(board.test_binary)

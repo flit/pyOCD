@@ -133,7 +133,7 @@ def flash_test(board_id):
         board = session.board
         target_type = board.target_type
 
-        memory_map = board.target.get_memory_map()
+        memory_map = board.target.memory_map
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
 
         ram_start = ram_region.start

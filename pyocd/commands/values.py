@@ -134,7 +134,7 @@ class MemoryMapValue(ValueBase):
         pt = prettytable.PrettyTable(["Region", "Type", "Start", "End", "Size", "Access", "Sector", "Page"])
         pt.align = 'l'
         pt.border = False
-        for region in self.context.selected_core.get_memory_map():
+        for region in self.context.selected_core.memory_map:
             pt.add_row([
                 region.name,
                 region.type.name.capitalize(),

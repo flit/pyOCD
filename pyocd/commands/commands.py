@@ -498,7 +498,7 @@ class Read64Command(ReadCommandBase):
             }
 
 def is_flash_write(context, addr, width, data):
-    mem_map = context.target.get_memory_map()
+    mem_map = context.target.memory_map
     region = mem_map.get_region_for_address(addr)
     if (region is None) or (not region.is_flash):
         return False

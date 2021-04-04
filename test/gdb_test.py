@@ -105,7 +105,7 @@ def test_gdb(board_id=None, n=0):
     result = GdbTestResult()
     with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
         board = session.board
-        memory_map = board.target.get_memory_map()
+        memory_map = board.target.memory_map
         ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
         target_type = board.target_type
