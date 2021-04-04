@@ -15,13 +15,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import (Callable, Sequence, Union, cast, overload)
+from typing import (Callable, Optional, Sequence, Union, cast, overload)
 from typing_extensions import Literal
 
 from ..utility import conversion
+from .memory_map import MemoryMap
 
 class MemoryInterface:
-    """@brief Interface for memory access."""
+    """@brief Interface for memory access.
+
+    Memory interfaces optionally have an attached memory map.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._memory_map: Optional[MemoryMap] = None
+
+    @property
+    def memory_map(self) -> Optional[MemoryMap]:
+        """@brief Getter for the optional memory map."""
+        return self._memory_map
+
+    @memory_map.setter
+    def memory_map(self, value: MemoryMap) -> None:
+        """@brief Setter for the optional memory map."""
+        self._memory_map = value
 
     def write_memory(self, addr: int, data: int, transfer_size: int = 32) -> None:
         """@brief Write a single memory location.
