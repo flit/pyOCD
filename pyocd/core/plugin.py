@@ -19,8 +19,10 @@ import pkg_resources
 import logging
 from typing import (
     Any,
+    Callable,
     Dict,
     List,
+    Optional,
     )
 
 from .._version import version as pyocd_version
@@ -61,7 +63,17 @@ class Plugin:
         @return List of @ref pyocd.core.options.OptionInfo "OptionInfo" objects.
         """
         return []
-
+    
+    @property
+    def api_version(self) -> int:
+        """@brief Version of the plugin API implemented by the plugin.
+        
+        The default implementation always returns 1.
+        
+        @return Integer API version.
+        """
+        return 1
+    
     @property
     def version(self) -> str:
         """@brief Current release version of the plugin.
@@ -82,15 +94,36 @@ class Plugin:
         """@brief Short description of the plugin."""
         return ""
 
-def load_plugin_classes_of_type(plugin_group: str, plugin_dict: Dict[str, Any], base_class: type) -> None:
-    """@brief Helper method to load plugins.
+def version_range_check(min: int, max: Optional[int] = None):
+    """@brief Helper to generate an API version range check.
+    
+    This function is meant to be used in for the `version_check` parameter of load_plugin_classes_of_type().
 
+    @param min Minimum accepted API version, or exact version if `max` is not provided.
+    @param max Optional maximum version, defaulting to `min` if not specified.
+    @return Callable suitable for the `version_check` parameter of load_plugin_classes_of_type().
+    """
+    the_max = max or min
+    def _check(plugin: Plugin) -> bool:
+        return min <= plugin.api_version <= the_max
+    return _check
+
+def load_plugin_classes_of_type(
+        plugin_group: str,
+        plugin_dict: Dict[str, Any],
+        base_class: type,
+        version_check: Callable[[Plugin], bool] = lambda p: True) -> None:
+    """@brief Helper method to load plugins.
+    
     Plugins are expected to return an implementation class from their Plugin.load() method. This
     class must be derived from `base_class`.
 
     @param plugin_group String of the plugin group, e.g. 'pyocd.probe'.
     @param plugin_dict Dictionary to fill with loaded plugin classes.
     @param base_class The required superclass for plugin implementation classes.
+    @param version_check An optional callback to verify the plugin's API version. The callback must accept a Plugin as
+        the sole parameter and return a bool indicating whether to load the plugin. The default value always returns
+        True regardless the API version.
     """
     for entry_point in pkg_resources.iter_entry_points(plugin_group):
         # Instantiate the plugin class.
@@ -101,7 +134,7 @@ def load_plugin_classes_of_type(plugin_group: str, plugin_dict: Dict[str, Any], 
             continue
 
         # Ask the plugin whether it should be loaded.
-        if plugin.should_load():
+        if plugin.should_load() and version_check(plugin):
             # Load the plugin and stuff the implementation class it gives
             impl_class = plugin.load()
             if not issubclass(impl_class, base_class):
