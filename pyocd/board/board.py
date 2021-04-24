@@ -21,7 +21,7 @@ from typing import (Any, Optional, TYPE_CHECKING)
 from ..core import exceptions
 from ..target import (TARGET, normalise_target_type_name)
 from ..target.pack import pack_target
-from ..utility.graph import GraphNode
+from ..utility.graph import MultiGraphNode
 
 if TYPE_CHECKING:
     from ..core.session import Session
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 LOG = logging.getLogger(__name__)
 
-class Board(GraphNode):
+class Board(MultiGraphNode):
     """@brief Represents the board containing the target and associated components.
 
     The board is the root of the runtime object graph. Responsible for creating the Target instance

@@ -16,9 +16,9 @@
 
 import pytest
 
-from pyocd.utility.graph import GraphNode
+from pyocd.utility.graph import MultiGraphNode
 
-class BaseNode(GraphNode):
+class BaseNode(MultiGraphNode):
     def __init__(self, value):
         super(BaseNode, self).__init__()
         self.value = value
@@ -46,7 +46,7 @@ def c():
 
 @pytest.fixture(scope='function')
 def graph(a, b, c):
-    p = GraphNode()
+    p = MultiGraphNode()
     p.add_child(a)
     a.add_child(b)
     p.add_child(c)
@@ -54,13 +54,13 @@ def graph(a, b, c):
 
 class TestGraph:
     def test_new(self):
-        n = GraphNode()
+        n = MultiGraphNode()
         assert len(n.children) == 0
         assert n.parent is None
 
     def test_add_child(self):
-        p = GraphNode()
-        a = GraphNode()
+        p = MultiGraphNode()
+        a = MultiGraphNode()
         p.add_child(a)
         assert p.children == [a]
         assert p.parent is None
@@ -68,10 +68,10 @@ class TestGraph:
         assert a.children == []
 
     def test_multiple_child(self):
-        p = GraphNode()
-        a = GraphNode()
-        b = GraphNode()
-        c = GraphNode()
+        p = MultiGraphNode()
+        a = MultiGraphNode()
+        b = MultiGraphNode()
+        c = MultiGraphNode()
         p.add_child(a)
         p.add_child(b)
         p.add_child(c)

@@ -15,9 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..utility.graph import GraphNode
+from ..utility.graph import MultiGraphNode
 
-class CoreSightComponent(GraphNode):
+class CoreSightComponent(MultiGraphNode):
     """@brief CoreSight component base class."""
 
     @classmethod

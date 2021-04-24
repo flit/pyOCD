@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2019 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ from typing import (Any, Callable, List, Optional, Sequence, TYPE_CHECKING, Set)
 from .memory_interface import MemoryInterface
 from .memory_map import MemoryMap
 from .target_delegate import DelegateHavingMixIn
-from ..utility.graph import GraphNode
+from ..utility.graph import MultiGraphNode
 
 if TYPE_CHECKING:
     from .session import Session
@@ -315,9 +315,9 @@ class Target(MemoryInterface, DelegateHavingMixIn):
     def get_target_context(self, core: Optional[int] = None) -> "DebugContext":
         raise NotImplementedError()
 
-class TargetGraphNode(Target, GraphNode):
+class TargetGraphNode(Target, MultiGraphNode):
     """@brief Abstract class for a target that is a graph node."""
 
     def __init__(self, session: "Session", memory_map: Optional[MemoryMap] = None) -> None:
         Target.__init__(self, session, memory_map)
-        GraphNode.__init__(self)
+        MultiGraphNode.__init__(self)
