@@ -19,6 +19,7 @@ from enum import Enum
 import collections.abc
 import copy
 from functools import total_ordering
+from collections.abc import Callable
 from typing import (Any, Dict, Iterable, Iterator, List, Optional, TYPE_CHECKING, Sequence, Tuple, Type, Union)
 
 from ..utility.strings import uniquify_name
@@ -728,6 +729,11 @@ class MemoryMap(collections.abc.Sequence):
     def iter_matching_regions(self, **kwargs: Any) -> Iterator[MemoryRegion]:
         """@brief Iterate over regions matching given criteria.
 
+        Keyword arguments are accepted that name attributes of memory regions and provide a value to match against.
+        Only those memory regions both having all named attributes and whose attributes match the specified value
+        will be returned from the iterator. The value of an attribute match keyword argument may also be a callable
+        that accepts a single parameter of the attribute value and returns a bool indicating a successful match or not.
+
         Useful attributes to match on include 'type', 'name', 'is_default', and others.
 
         @param self
@@ -738,8 +744,12 @@ class MemoryMap(collections.abc.Sequence):
             mismatch = False
             for k, v in kwargs.items():
                 try:
-                    if getattr(r, k) != v:
-                        mismatch = True
+                    attr_value = getattr(r, k)
+                    if isinstance(v, Callable):
+                        mismatch = not v(attr_value)
+                    else:
+                        mismatch = attr_value != v
+                    if mismatch:
                         break
                 except AttributeError:
                     # Don't match regions without the specified attribute.
