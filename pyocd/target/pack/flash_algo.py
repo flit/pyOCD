@@ -116,6 +116,19 @@ class PackFlashAlgo(object):
 
         self.algo_data = self._create_algo_bin(ro_rw_zi)
 
+    def get_required_ram(self, blocksize: int) -> int:
+        """@brief Return number of bytes required to hold this algo at runtime.
+
+        This includes the algo's code and data, a small stack, and one buffer for page data.
+
+        @param self
+        @return Minimum bytes of RAM bytes required to run the algorithm.
+        """
+        return (FLASH_ALGO_STACK_SIZE
+                 + len(self._FLASH_BLOB_HEADER) * 2
+                 + len(self.algo_data)
+                 + blocksize)
+
     def get_pyocd_flash_algo(self, blocksize, ram_region):
         """@brief Return a dictionary representing a pyOCD flash algorithm, or None.
 

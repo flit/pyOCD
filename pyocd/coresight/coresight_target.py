@@ -185,6 +185,20 @@ class CoreSightTarget(SoCTarget):
                     LOG.warning("Could not halt core #%d: %s", core.core_number, err,
                         exc_info=self.session.log_tracebacks)
 
+    def _get_create_flash_ram_region(self, pack_algo: PackFlashAlgo, page_size: int) -> RamRegion:
+        """@brief Returns the memory region that will be used for flash programming.
+        @return RamRegion instance that will be used for flash programming.
+        @exception TargetSupportError Raised if no appropriate RAM region can be found.
+        """
+        min_ram = pack_algo.get_required_ram(page_size)
+        region = self.memory_map.get_first_matching_region(
+                type=MemoryType.RAM,
+                is_default=True,
+                length=lambda x: x >= min_ram)
+        if not region:
+            raise exceptions.TargetSupportError("no suitable RAM region found for flash algorithm")
+        return cast(RamRegion, region)
+
     def create_flash(self) -> None:
         """@brief Instantiates flash objects for memory regions.
 
@@ -203,13 +217,13 @@ class CoreSightTarget(SoCTarget):
                         LOG.info("creating flash algo for region %s from: %s", region.name, flm_path)
                         pack_algo = PackFlashAlgo(flm_path)
                     else:
-                        LOG.warning("Failed to find FLM file: %s", region.flm)
-                        break
+                        LOG.warning("failed to find FLM file '%s' for flash region '%s'; "
+                                "flash will not be programmable in this region", region.flm, region.name)
+                        continue
                 elif isinstance(region.flm, PackFlashAlgo):
                     pack_algo = region.flm
                 else:
-                    LOG.warning("flash region flm attribute is unexpected type")
-                    break
+                    raise TypeError(f"flash region '{region.name}' flm attribute is unexpected type")
 
                 # Create the algo dict from the FLM.
                 if self.session.options.get("debug.log_flm_info"):
@@ -219,7 +233,7 @@ class CoreSightTarget(SoCTarget):
                     page_size = min(s[1] for s in pack_algo.sector_sizes)
                 algo = pack_algo.get_pyocd_flash_algo(
                         page_size,
-                        self.memory_map.get_default_region_of_type(MemoryType.RAM))
+                        self._get_create_flash_ram_region(pack_algo, page_size))
 
                 # If we got a valid algo from the FLM, set it on the region. This will then
                 # be used below.
@@ -235,7 +249,8 @@ class CoreSightTarget(SoCTarget):
                 if region.algo is not None:
                     obj = klass(self, region.algo)
                 else:
-                    LOG.warning("flash region '%s' has no flash algo" % region.name)
+                    LOG.warning("flash region '%s' has no flash algo; flash will not be programmable in this region",
+                            region.name)
                     continue
             else:
                 obj = klass(self) # type:ignore
