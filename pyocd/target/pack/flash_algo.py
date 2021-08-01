@@ -254,7 +254,7 @@ class PackFlashAlgo:
                     to_ret[symbol] = default
                     continue
                 raise FlashAlgoException("Missing symbol %s" % symbol)
-            to_ret[symbol] = symbolInfo.address
+            to_ret[symbol] = symbolInfo.address | 1 # set T-bit on address
         return to_ret
 
     def _find_sections(self, name_type_pairs: Sequence[Tuple[str, str]]) -> Tuple[Optional["ELFSection"], ...]:
