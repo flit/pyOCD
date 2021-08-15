@@ -29,7 +29,7 @@ from ..utility.cmdline import (
     split_command_line,
     )
 from ..probe.shared_probe_proxy import SharedDebugProbeProxy
-from ..gdbserver import GDBServer
+from ..gdbserver.gdbserver import GDBServer
 from ..probe.tcp_probe_server import DebugProbeServer
 from ..coresight.generic_mem_ap import GenericMemAPTarget
 from ..utility.notification import Notification
