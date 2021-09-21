@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from concurrent.futures import (ThreadPoolExecutor, as_completed)
+
 from ..core import exceptions
 from ..core.plugin import load_plugin_classes_of_type
 from .debug_probe import DebugProbe
@@ -51,17 +53,25 @@ class DebugProbeAggregator(object):
         
         probes = []
         
-        # First look for a match against the full ID, as this can be more efficient for certain probes.
-        if unique_id is not None:
-            for cls in klasses:
-                probe = cls.get_probe_with_id(unique_id, is_explicit)
-                if probe is not None:
-                    return [probe]
+        with ThreadPoolExecutor(thread_name_prefix="DebugProbeAggregator") as thread_pool:
         
-        # No full match, so ask probe classes for probes.
-        for cls in klasses:
-            probes += cls.get_all_connected_probes(unique_id, is_explicit)
+            # First look for a match against the full ID, as this can be more efficient for certain probes.
+            if unique_id is not None:
+                def get_probe_by_full_id(cls):
+                    return cls.get_probe_with_id(unique_id, is_explicit)
+            
+                for future in as_completed(thread_pool.submit(get_probe_by_full_id, kls) for kls in klasses):
+                    probe = future.result()
+                    if probe is not None:
+                        return [probe]
         
+            # No full match, so ask probe classes for probes.
+            def get_probe_with_id(cls):
+                return cls.get_all_connected_probes(unique_id, is_explicit)
+
+            for future in as_completed(thread_pool.submit(get_probe_with_id, kls) for kls in klasses):
+                probes += future.result()
+
         # Filter by unique ID.
         if unique_id is not None:
             unique_id = unique_id.lower()
