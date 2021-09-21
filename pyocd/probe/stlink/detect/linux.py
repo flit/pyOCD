@@ -44,7 +44,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
         self.mmp = re.compile(r"(?P<dev>(/[^/ ]*)+) on (?P<dir>(/[^/ ]*)+) ")
         self.udp = re.compile(r"^[0-9]+-[0-9]+[^:\s]*$")
 
-    def find_candidates(self):
+    def _find_candidates_uncached(self):
         disk_ids = self._dev_by_id("disk")
         mount_ids = dict(self._fat_mounts())
         usb_info = self._sysfs_block_devices(disk_ids.values())

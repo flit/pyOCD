@@ -92,7 +92,7 @@ class StlinkDetectDarwin(StlinkDetectBase):
         StlinkDetectBase.__init__(self, **kwargs)
         self.mac_version = float(".".join(platform.mac_ver()[0].split(".")[:2]))
 
-    def find_candidates(self):
+    def _find_candidates_uncached(self):
         # {volume_id: {serial:, vendor_id:, product_id:, tty:}}
         volumes = self._volumes()
 

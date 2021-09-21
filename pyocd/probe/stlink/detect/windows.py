@@ -247,7 +247,7 @@ class StlinkDetectWindows(StlinkDetectBase):
     def __init__(self, **kwargs):
         StlinkDetectBase.__init__(self, **kwargs)
 
-    def find_candidates(self):
+    def _find_candidates_uncached(self):
         cached_mount_points = _get_cached_mounted_points()
         disks = _get_disks()
         usb_storage_devices = _get_usb_storage_devices()

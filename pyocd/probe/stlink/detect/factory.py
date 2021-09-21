@@ -1,5 +1,5 @@
-
 # Copyright (c) 2018, Arm Limited and affiliates.
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,10 +15,12 @@
 # limitations under the License.
 
 import platform
+import functools
 
 # Make sure that any global generic setup is run
 from . import base  # noqa: F401 # lgtm[py/unused-import]
 
+@functools.lru_cache(maxsize=1)
 def create_mbed_detector(**kwargs):
     """! Factory used to create host OS specific mbed-lstools object
 

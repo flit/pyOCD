@@ -21,6 +21,7 @@ from os import listdir
 from os.path import join, exists, isdir
 import logging
 import six
+import functools
 
 LOG = logging.getLogger(__name__)
 
@@ -38,6 +39,17 @@ class StlinkDetectBase(object):
         pass
 
     @abstractmethod
+    def _find_candidates_uncached(self):
+        """OS-specific method to find all candidate devices connected to this computer
+
+        @note Should not open any files
+        @note Should always return fresh results.
+
+        @return A dict with the keys 'mount_point', 'serial_port' and 'target_id_usb_id'
+        """
+        raise NotImplementedError
+
+    @functools.lru_cache(maxsize=1)
     def find_candidates(self):
         """Find all candidate devices connected to this computer
 
@@ -45,7 +57,7 @@ class StlinkDetectBase(object):
 
         @return A dict with the keys 'mount_point', 'serial_port' and 'target_id_usb_id'
         """
-        raise NotImplementedError
+        return self._find_candidates_uncached()
 
     def list_mbeds(self):
         """ List details of connected devices
