@@ -510,19 +510,6 @@ class Flash:
     def get_flash_builder(self):
         return FlashBuilder(self)
 
-    def flash_block(self, addr, data, smart_flash=True, chip_erase=None, progress_cb=None, fast_verify=False):
-        """@brief Flash a block of data.
-
-        @note Deprecated. Will be removed in v1.0.
-        """
-        assert self.region is not None
-        assert self.region.contains_range(start=addr, length=len(data))
-
-        fb = FlashBuilder(self)
-        fb.add_data(addr, data)
-        info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
-        return info
-
     def _call_function(self, pc, r0=None, r1=None, r2=None, r3=None, init=False):
         reg_list = []
         data_list = []
