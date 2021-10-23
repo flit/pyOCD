@@ -183,10 +183,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='pyOCD commander test')
     parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
     parser.add_argument('-u', '--uid', help='Debug probe unique ID')
-    parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
-    DAPAccess.set_args(args.daparg)
     commander_test(args.uid)
 

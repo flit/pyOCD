@@ -47,8 +47,6 @@ class ServerSubcommand(SubcommandBase):
             help="Do not use a configuration file.")
         server_config_options.add_argument('-O', action='append', dest='options', metavar="OPTION=VALUE",
             help="Set named option.")
-        server_config_options.add_argument("-da", "--daparg", dest="daparg", nargs='+',
-            help="Send setting to DAPAccess layer.")
 
         server_options = server_parser.add_argument_group('probe server')
         server_options.add_argument("-p", "--port", dest="port_number", type=int, default=None,
