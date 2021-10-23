@@ -122,6 +122,11 @@ class FlashTest(Test):
         result.test = self
         return result
 
+def flash_block(flash, addr, data, smart_flash=True, chip_erase=None, progress_cb=None, fast_verify=False):
+    fb = flash.get_flash_builder()
+    fb.add_data(addr, data)
+    info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
+    return info
 
 def flash_test(board_id):
     with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
@@ -192,7 +197,7 @@ def flash_test(board_id):
             test_count += 1
 
             print("\n------ Test Basic Page Erase ------")
-            info = flash.flash_block(addr, data, False, "sector", progress_cb=print_progress())
+            info = flash_block(flash, addr, data, False, "sector", progress_cb=print_progress())
             data_flashed = target.read_memory_block8(addr, size)
             if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_SECTOR_ERASE:
                 print("TEST PASSED")
@@ -202,7 +207,7 @@ def flash_test(board_id):
             test_count += 1
 
             print("\n------ Test Basic Chip Erase ------")
-            info = flash.flash_block(addr, data, False, "chip", progress_cb=print_progress())
+            info = flash_block(flash, addr, data, False, "chip", progress_cb=print_progress())
             data_flashed = target.read_memory_block8(addr, size)
             if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_CHIP_ERASE:
                 print("TEST PASSED")
@@ -212,7 +217,7 @@ def flash_test(board_id):
             test_count += 1
 
             print("\n------ Test Smart Page Erase ------")
-            info = flash.flash_block(addr, data, True, "sector", progress_cb=print_progress())
+            info = flash_block(flash, addr, data, True, "sector", progress_cb=print_progress())
             data_flashed = target.read_memory_block8(addr, size)
             if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_SECTOR_ERASE:
                 print("TEST PASSED")
@@ -222,7 +227,7 @@ def flash_test(board_id):
             test_count += 1
 
             print("\n------ Test Smart Chip Erase ------")
-            info = flash.flash_block(addr, data, True, "chip", progress_cb=print_progress())
+            info = flash_block(flash, addr, data, True, "chip", progress_cb=print_progress())
             data_flashed = target.read_memory_block8(addr, size)
             if same(data_flashed, data) and info.program_type is FlashBuilder.FLASH_CHIP_ERASE:
                 print("TEST PASSED")
@@ -236,7 +241,7 @@ def flash_test(board_id):
             print("\n------ Test Basic Page Erase (Entire region) ------")
             new_data = list(data)
             new_data.extend(unused * [0x77])
-            info = flash.flash_block(addr, new_data, False, "sector", progress_cb=print_progress())
+            info = flash_block(flash, addr, new_data, False, "sector", progress_cb=print_progress())
             if info.program_type == FlashBuilder.FLASH_SECTOR_ERASE:
                 print("TEST PASSED")
                 test_pass_count += 1
@@ -247,7 +252,7 @@ def flash_test(board_id):
 
             print("\n------ Test Fast Verify ------")
             if flash.get_flash_info().crc_supported:
-                info = flash.flash_block(addr, new_data, progress_cb=print_progress(), fast_verify=True)
+                info = flash_block(flash, addr, new_data, progress_cb=print_progress(), fast_verify=True)
                 if info.analyze_type == FlashBuilder.FLASH_ANALYSIS_CRC32:
                     print("TEST PASSED")
                     test_pass_count += 1
@@ -261,7 +266,7 @@ def flash_test(board_id):
             addr = rom_start + rom_size // 2
             page_size = flash.get_page_info(addr).size
             new_data = [0x55] * page_size * 2
-            info = flash.flash_block(addr, new_data, progress_cb=print_progress())
+            info = flash_block(flash, addr, new_data, progress_cb=print_progress())
             data_flashed = target.read_memory_block8(addr, len(new_data))
             if same(data_flashed, new_data) and info.program_type is FlashBuilder.FLASH_SECTOR_ERASE:
                 print("TEST PASSED")
@@ -318,7 +323,7 @@ def flash_test(board_id):
             print("\n------ Test Missing Progress Callback ------")
             # Freebee if nothing asserts
             addr = rom_start
-            flash.flash_block(rom_start, data, True)
+            flash_block(flash, rom_start, data, True)
             print("TEST PASSED")
             test_pass_count += 1
             test_count += 1
@@ -329,8 +334,8 @@ def flash_test(board_id):
                 non_thumb_data = list(data)
                 # Clear bit 0 of 2nd word - reset handler
                 non_thumb_data[4] = non_thumb_data[4] & ~1
-                flash.flash_block(rom_start, non_thumb_data)
-                flash.flash_block(rom_start, data)
+                flash_block(flash, rom_start, non_thumb_data)
+                flash_block(flash, rom_start, data)
                 print("TEST PASSED")
                 test_pass_count += 1
                 test_count += 1
@@ -343,7 +348,7 @@ def flash_test(board_id):
                 new_data = list(data)
                 new_data.extend([flash.region.erased_byte_value] * unused) # Pad with erased value
                 data_size = len(new_data)
-                info = flash.flash_block(addr, new_data, progress_cb=print_progress())
+                info = flash_block(flash, addr, new_data, progress_cb=print_progress())
                 print(f"Selected erase type is {info.program_type}")
                 print(f"Total byte count = {info.total_byte_count} (expected {data_size})")
                 if info.total_byte_count == data_size:
@@ -358,7 +363,7 @@ def flash_test(board_id):
                 new_data = list(data)
                 new_data.extend([unerasedValue] * unused) # Pad with unerased value
                 data_size = len(new_data)
-                info = flash.flash_block(addr, new_data, progress_cb=print_progress())
+                info = flash_block(flash, addr, new_data, progress_cb=print_progress())
                 print(f"Selected erase type is {info.program_type}")
                 print(f"Total byte count = {info.total_byte_count} (expected {data_size})")
                 if info.total_byte_count == data_size:
@@ -373,7 +378,7 @@ def flash_test(board_id):
             new_data = list(data)
             new_data.extend([unerasedValue] * unused) # Pad with unerased value
             data_size = len(new_data)
-            info = flash.flash_block(addr, new_data, progress_cb=print_progress())
+            info = flash_block(flash, addr, new_data, progress_cb=print_progress())
             print(f"Selected erase type is {info.program_type}")
             print(f"Total byte count = {info.total_byte_count} (expected {data_size})")
             if info.total_byte_count == data_size:
@@ -394,7 +399,7 @@ def flash_test(board_id):
             new_data.extend([unerasedValue] * size_same) # Pad 5/6 with unerased value and 1/6 with 0x55
             new_data.extend([0x55] * size_differ)
             data_size = len(new_data)
-            info = flash.flash_block(addr, new_data, progress_cb=print_progress())
+            info = flash_block(flash, addr, new_data, progress_cb=print_progress())
             print(f"Selected erase type is {info.program_type}")
             print(f"Total byte count = {info.total_byte_count} (expected {data_size})")
             if info.total_byte_count == data_size:
