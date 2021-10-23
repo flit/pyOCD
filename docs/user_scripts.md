@@ -144,7 +144,6 @@ The usual Python builtins are available.
 | `exceptions` | Module containing the exception classes. |
 | `FileProgrammer` | Utility class to program files to target flash. |
 | `FlashEraser` | Utility class to erase target flash. |
-| `FlashLoader` | Utility class to program raw binary data to target memory. Deprecated, use `MemoryLoader` instead. |
 | `FlashRegion` | Flash memory region. |
 | `HaltReason` | Enumeration of halt reasons. |
 | `MemoryLoader` | Utility class to program raw binary data to target memory. |

@@ -44,7 +44,7 @@ Functional tests:
 - `connect_test.py`: tests all combinations of the halt on connect and disconnect resume options.
 - `cortex_test.py`: validates CPU control operations and memory accesses.
 - `debug_context_test.py`: tests some `DebugContext` classes.
-- `flash_loader_test.py`: test the classes in the `pyocd.flash.loader` module.
+- `memory_loader_test.py`: test the classes in the `pyocd.flash.loader` module.
 - `flash_test.py`: comprehensive test of flash programming.
 - `import_all.py`: imports all pyocd modules. (Not run by `automated_test.py`.)
 - `gdb_test.py`: tests the gdbserver by running a script in a gdb process. Note that on Windows,

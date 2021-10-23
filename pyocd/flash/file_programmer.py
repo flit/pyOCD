@@ -24,7 +24,7 @@ import errno
 from typing import (Any, Callable, Dict, IO, List, Optional, Tuple, TYPE_CHECKING, Union)
 
 from .loader import (
-    FlashLoader,
+    MemoryLoader,
     ProgressCallback,
 )
 from ..core import exceptions
@@ -51,7 +51,7 @@ class FileProgrammer(object):
     Most specifically, this class implements the behaviour provided by the command-line flash
     programming tool. The code in this class simply extracts data from the given file, potentially
     respecting format-specific options such as the base address for binary files. Then the heavy
-    lifting of flash programming is handled by FlashLoader, and beneath that, FlashBuilder.
+    lifting of flash programming is handled by MemoryLoader, and beneath that, MemoryBuilder subclasses.
 
     Support file formats are:
     - Binary (.bin)
@@ -144,7 +144,7 @@ class FileProgrammer(object):
         if file_format is None or file_format not in self._format_handlers:
             raise ValueError("unknown file format '%s'" % file_format)
 
-        self._loader = FlashLoader(self._session,
+        self._loader = MemoryLoader(self._session,
                                     progress=self._progress,
                                     chip_erase=self._chip_erase,
                                     smart_flash=self._smart_flash,
