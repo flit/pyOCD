@@ -18,16 +18,15 @@
 import os
 import pkg_resources
 
-from .. import __version__
-from ..core.session import Session
-from ..core.helpers import ConnectHelper
-from ..core import options
-from ..target import TARGET
-from ..target.builtin import BUILTIN_TARGETS
-from ..board.board_ids import BOARD_ID_TO_INFO
-from ..target.pack import pack_target
-
-from ..probe.debug_probe import DebugProbe
+from . import __version__
+from .core.session import Session
+from .core.helpers import ConnectHelper
+from .core import options
+from .target import TARGET
+from .target.builtin import BUILTIN_TARGETS
+from .board.board_ids import BOARD_ID_TO_INFO
+from .target.pack import pack_target
+from .probe.debug_probe import DebugProbe
 
 class StubProbe(DebugProbe):
     @property
@@ -200,8 +199,8 @@ class ListGenerator(object):
         Output version history:
         - 1.0, initial version with debug probe and RTOS plugins
         """
-        from ..probe.aggregator import PROBE_CLASSES
-        from ..rtos import RTOS
+        from .probe.aggregator import PROBE_CLASSES
+        from .rtos import RTOS
         plugin_groups = [
                 'pyocd.probe',
                 'pyocd.rtos',

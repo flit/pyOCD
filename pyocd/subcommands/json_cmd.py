@@ -22,7 +22,7 @@ import traceback
 
 from .base import SubcommandBase
 from ..core.session import Session
-from ..tools.lists import ListGenerator
+from ..lists import ListGenerator
 from ..target.pack import pack_target
 from ..utility.cmdline import convert_session_options
 from .. import __version__
