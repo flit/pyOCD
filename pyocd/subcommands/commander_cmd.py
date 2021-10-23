@@ -42,8 +42,6 @@ class CommanderSubcommand(SubcommandBase):
         commander_parser = argparse.ArgumentParser(description=cls.HELP, add_help=False)
 
         commander_options = commander_parser.add_argument_group("commander options")
-        commander_options.add_argument("-H", "--halt", action="store_true", default=None,
-            help="Halt core upon connect. (Deprecated, see --connect.)")
         commander_options.add_argument("-N", "--no-init", action="store_true",
             help="Do not init debug system.")
         commander_options.add_argument("--elf", metavar="PATH",

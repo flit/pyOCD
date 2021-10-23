@@ -179,13 +179,10 @@ class PyOCDCommander:
 
         options = convert_session_options(self.args.options)
 
-        # Set connect mode. The --connect option takes precedence when set. Then, if --halt is set
-        # then the connect mode is halt. If connect_mode is set through -O then use that.
-        # Otherwise default to attach.
+        # Set connect mode. The --connect option takes precedence when set. If connect_mode is set through
+        # -O then use that. Otherwise default to attach.
         if hasattr(self.args, 'connect_mode') and self.args.connect_mode is not None:
             connect_mode = self.args.connect_mode
-        elif self.args.halt:
-            connect_mode = 'halt'
         elif 'connect_mode' in options:
             connect_mode = None
         else:
