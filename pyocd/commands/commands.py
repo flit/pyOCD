@@ -639,30 +639,6 @@ class SavememCommand(CommandBase):
             f.write(data)
             self.context.writei("Saved %d bytes to %s", self.count, self.filename)
 
-class LoadmemCommand(CommandBase):
-    INFO = {
-            'names': ['loadmem'],
-            'group': 'standard',
-            'category': 'memory',
-            'nargs': 2,
-            'usage': "ADDR FILENAME",
-            'help': "Load a binary file to an address in memory (RAM or flash).",
-            'extra_help': "This command is deprecated in favour of the more flexible 'load'.",
-            }
-
-    def parse(self, args):
-        self.addr = self._convert_value(args[0])
-        self.filename = args[1]
-
-    def execute(self):
-        with open(self.filename, 'rb') as f:
-            data = bytearray(f.read())
-            if is_flash_write(self.context, self.addr, 8, data):
-                FlashLoader.program_binary_data(self.context.session, self.addr, data)
-            else:
-                self.context.selected_ap.write_memory_block8(self.addr, data)
-            self.context.writei("Loaded %d bytes to 0x%08x", len(data), self.addr)
-
 class LoadCommand(CommandBase):
     INFO = {
             'names': ['load'],
