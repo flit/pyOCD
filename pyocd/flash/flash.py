@@ -75,7 +75,7 @@ class Flash:
     Instances of this class are bound to a flash memory region
     (@ref pyocd.core.memory_map.FlashRegion "FlashRegion") and support
     programming only within that region's address range. To program images that cross flash
-    memory region boundaries, use the @ref pyocd.flash.loader.FlashLoader "FlashLoader" or
+    memory region boundaries, use the @ref pyocd.flash.loader.MemoryLoader "MemoryLoader" or
     @ref pyocd.flash.file_programmer.FileProgrammer "FileProgrammer" classes.
 
     Terminology:

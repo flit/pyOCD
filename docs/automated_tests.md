@@ -107,7 +107,7 @@ Validates CPU control operations and memory accesses.
 Tests some <tt>DebugContext</tt> classes.
 </td></tr>
 
-<tr><td>Flash Loader Test</td><td><tt>flash_loader_test.py</tt></td><td>
+<tr><td>Memory Loader Test</td><td><tt>memory_loader_test.py</tt></td><td>
 Test the classes in the <tt>pyocd.flash.loader</tt> module.
 </td></tr>
 

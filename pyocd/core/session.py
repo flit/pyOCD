@@ -458,7 +458,6 @@ class Session(Notifier):
             'DeviceRegion': memory_map.DeviceRegion,
             'FileProgrammer': file_programmer.FileProgrammer,
             'FlashEraser': eraser.FlashEraser,
-            'FlashLoader': loader.FlashLoader, # deprecated
             # User script info
             '__name__': script_name,
             '__file__': script_path,

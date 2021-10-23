@@ -32,7 +32,7 @@ from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import same
 from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
-from pyocd.flash.loader import FlashLoader
+from pyocd.flash.loader import MemoryLoader
 from pyocd.flash.file_programmer import FileProgrammer
 from pyocd.flash.eraser import FlashEraser
 from test_util import (
@@ -45,20 +45,20 @@ from test_util import (
     get_test_binary_path,
     )
 
-class FlashLoaderTestResult(TestResult):
+class MemoryLoaderTestResult(TestResult):
     def __init__(self):
-        super(FlashLoaderTestResult, self).__init__(None, None, None)
-        self.name = "flashloader"
+        super().__init__(None, None, None)
+        self.name = "memoryloader"
 
-class FlashLoaderTest(Test):
+class MemoryLoaderTest(Test):
     def __init__(self):
-        super(FlashLoaderTest, self).__init__("Flash Loader Test", flash_loader_test)
+        super().__init__("Memory Loader Test", memory_loader_test)
 
     def run(self, board):
         try:
             result = self.test_function(board.unique_id)
         except Exception as e:
-            result = FlashLoaderTestResult()
+            result = MemoryLoaderTestResult()
             result.passed = False
             print("Exception %s when testing board %s" % (e, board.unique_id))
             traceback.print_exc(file=sys.stdout)
@@ -66,7 +66,7 @@ class FlashLoaderTest(Test):
         result.test = self
         return result
 
-def flash_loader_test(board_id):
+def memory_loader_test(board_id):
     with ConnectHelper.session_with_chosen_probe(unique_id=board_id, **get_session_options()) as session:
         board = session.board
         target = session.target
@@ -92,14 +92,14 @@ def flash_loader_test(board_id):
 
         test_pass_count = 0
         test_count = 0
-        result = FlashLoaderTestResult()
+        result = MemoryLoaderTestResult()
 
         with open(binary_file, "rb") as f:
             data = list(bytearray(f.read()))
         data_length = len(data)
 
         print("\n------ Test Basic Load ------")
-        loader = FlashLoader(session, chip_erase="sector")
+        loader = MemoryLoader(session, chip_erase="sector")
         loader.add_data(boot_start_addr, data)
         loader.commit()
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
@@ -118,7 +118,7 @@ def flash_loader_test(board_id):
         else:
             orig_data_length = data_length
 
-        loader = FlashLoader(session, chip_erase="sector")
+        loader = MemoryLoader(session, chip_erase="sector")
         loader.add_data(addr, test_data)
         loader.add_data(addr + boot_blocksize, test_data)
         loader.commit()
@@ -145,7 +145,7 @@ def flash_loader_test(board_id):
         test_count += 1
 
         print("\n------ Test Load Chip Erase ------")
-        loader = FlashLoader(session, chip_erase="chip")
+        loader = MemoryLoader(session, chip_erase="chip")
         loader.add_data(boot_start_addr, data)
         loader.commit()
         verify_data = target.read_memory_block8(boot_start_addr, data_length)
@@ -202,15 +202,13 @@ def flash_loader_test(board_id):
         return result
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='pyOCD flash loader test')
+    parser = argparse.ArgumentParser(description='pyOCD memory loader test')
     parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
-    parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
-    DAPAccess.set_args(args.daparg)
     # Set to debug to print some of the decisions made while flashing
     session = ConnectHelper.session_with_chosen_probe(**get_session_options())
-    test = FlashLoaderTest()
+    test = MemoryLoaderTest()
     result = [test.run(session.board)]
 

@@ -46,7 +46,7 @@ from basic_test import BasicTest
 from speed_test import SpeedTest
 from cortex_test import CortexTest
 from flash_test import FlashTest
-from flash_loader_test import FlashLoaderTest
+from memory_loader_test import MemoryLoaderTest
 from gdb_test import GdbTest
 from json_lists_test import JsonListsTest
 from connect_test import ConnectTest
@@ -74,7 +74,7 @@ all_tests = [
              CortexTest(),
              ConcurrencyTest(),
              FlashTest(),
-             FlashLoaderTest(),
+             MemoryLoaderTest(),
              DebugContextTest(),
              GdbTest(),
              CommandsTest(),

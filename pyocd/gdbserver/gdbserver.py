@@ -26,7 +26,7 @@ from typing import (Dict, List, Optional, Tuple)
 
 from ..core import exceptions
 from ..core.target import Target
-from ..flash.loader import FlashLoader
+from ..flash.loader import MemoryLoader
 from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.compatibility import (to_bytes_safe, to_str_safe)
@@ -811,7 +811,7 @@ class GDBServer(threading.Thread):
 
             # Get flash loader if there isn't one already
             if self.flash_loader is None:
-                self.flash_loader = FlashLoader(self.session)
+                self.flash_loader = MemoryLoader(self.session)
 
             # Add data to flash loader
             self.flash_loader.add_data(write_addr, unescape(data[idx_begin:len(data) - 3]))

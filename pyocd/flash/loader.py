@@ -359,5 +359,3 @@ class MemoryLoader:
         mgr.add_data(address, data)
         mgr.commit()
 
-# Define deprecated class name.
-FlashLoader = MemoryLoader

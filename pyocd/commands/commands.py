@@ -33,7 +33,6 @@ from ..core.helpers import ConnectHelper
 from ..core import exceptions
 from ..probe.tcp_probe_server import DebugProbeServer
 from ..core.target import Target
-from ..flash.loader import FlashLoader
 from ..flash.eraser import FlashEraser
 from ..flash.file_programmer import FileProgrammer
 from ..gdbserver.gdbserver import GDBServer
