@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2006-2015 Arm Limited
+# Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import board
-from . import core
-from . import debug
-from . import flash
-from . import gdbserver
-from . import target
-from . import utility
-from . import coresight
-from . import trace
-
 from ._version import version as __version__
 
+# Import a handful of useful classes.
+from .core.helpers import ConnectHelper
+from .core.session import Session
+from .flash.file_programmer import FileProgrammer
+from .flash.eraser import FlashEraser
+from .flash.loader import MemoryLoader
