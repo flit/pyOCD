@@ -129,8 +129,6 @@ def commands_test(board_id):
                 "write16 0x%08x 0xabcd" % (ram_base + 8),
                 "write8 0x%08x 0 1 2 3 4 5 6" % (ram_base + 10),
                 "savemem 0x%08x 128 '%s'" % (boot_start_addr, fix_windows_path(temp_bin_file)),
-                "loadmem 0x%08x '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
-                "loadmem 0x%08x '%s'" % (boot_start_addr, fix_windows_path(binary_file)),
                 "load '%s'" % fix_windows_path(temp_test_hex_name),
                 "load '%s' 0x%08x" % (fix_windows_path(binary_file), boot_start_addr),
                 "compare 0x%08x '%s'" % (ram_base, fix_windows_path(temp_bin_file)),
