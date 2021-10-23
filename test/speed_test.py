@@ -235,11 +235,9 @@ def speed_test(board_id):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='pyOCD speed test')
     parser.add_argument('-d', '--debug', action="store_true", help='Enable debug logging')
-    parser.add_argument("-da", "--daparg", dest="daparg", nargs='+', help="Send setting to DAPAccess layer.")
     args = parser.parse_args()
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level)
-    DAPAccess.set_args(args.daparg)
     session = ConnectHelper.session_with_chosen_probe(**get_session_options())
     test = SpeedTest()
     result = [test.run(session.board)]

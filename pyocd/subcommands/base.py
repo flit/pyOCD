@@ -64,8 +64,6 @@ class SubcommandBase:
             help="Use the specified user script. Defaults to pyocd_user.py in the project directory.")
         CONFIG_GROUP.add_argument('-O', action='append', dest='options', metavar="OPTION=VALUE",
             help="Set named option.")
-        CONFIG_GROUP.add_argument("-da", "--daparg", dest="daparg", nargs='+',
-            help="(Deprecated) Send setting to DAPAccess layer.")
         CONFIG_GROUP.add_argument("--pack", metavar="PATH", action="append",
             help="Path to the .pack file for a CMSIS Device Family Pack.")
 

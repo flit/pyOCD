@@ -152,10 +152,6 @@ class PyOCDTool(SubcommandBase):
 
             self._setup_logging()
 
-            # Pass any options to DAPAccess.
-            if hasattr(self._args, 'daparg'):
-                DAPAccess.set_args(self._args.daparg)
-
             # Create an instance of the subcommand and invoke it.
             cmd = self._args.command_class(self._args)
             status = cmd.invoke()

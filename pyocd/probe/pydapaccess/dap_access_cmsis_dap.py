@@ -22,7 +22,6 @@ import collections
 import threading
 from typing import (Any, Dict, Optional, Tuple, Union)
 
-from .dap_settings import DAPSettings
 from .dap_access_api import DAPAccessIntf
 from .cmsis_dap_core import CMSISDAPProtocol
 from .interface import (INTERFACE, USB_BACKEND, USB_BACKEND_V2)
@@ -515,27 +514,6 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             return None
 
     @staticmethod
-    def set_args(arg_list):
-        # Example: arg_list =['limit_packets=True']
-        arg_pattern = re.compile("([^=]+)=(.*)")
-        if arg_list:
-            for arg in arg_list:
-                match = arg_pattern.match(arg)
-                # check if arguments have correct format
-                if match:
-                    attr = match.group(1)
-                    if hasattr(DAPSettings, attr):
-                        val = match.group(2)
-                        # convert string to int or bool
-                        if val.isdigit():
-                            val = int(val)
-                        elif val == "True":
-                            val = True
-                        elif val == "False":
-                            val = False
-                        setattr(DAPSettings, attr, val)
-
-    @staticmethod
     def _lookup_interface_for_unique_id(unique_id):
         result_interface = None
         all_interfaces = _get_interfaces()
@@ -754,7 +732,7 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self._is_open = True
             return
 
-        if session.Session.get_current().options['cmsis_dap.limit_packets'] or DAPSettings.limit_packets:
+        if session.Session.get_current().options['cmsis_dap.limit_packets']:
             self._packet_count = 1
             LOG.debug("Limiting packet count to %d", self._packet_count)
         else:
