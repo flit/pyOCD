@@ -53,7 +53,8 @@ class CoreSightDiscovery(object):
     def _create_component(self, cmpid):
         try:
             LOG.debug("Creating %s component", cmpid.name)
-            cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
+            factory = self._target.get_component_factory(cmpid)
+            cmp = factory(cmpid.ap, cmpid, cmpid.address)
             cmp.init()
         except exceptions.Error as err:
             LOG.error("Error attempting to create component %s: %s", cmpid.name, err,

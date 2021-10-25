@@ -29,6 +29,7 @@ from ..utility.sequencer import CallSequence
 from ..target.pack.flm_region_builder import FlmFlashRegionBuilder
 
 if TYPE_CHECKING:
+    from .rom_table import CoreSightComponentID
     from ..core.session import Session
     from ..core.memory_map import MemoryMap
     from .ap import (APAddressBase, AccessPort)
@@ -363,3 +364,11 @@ class CoreSightTarget(SoCTarget):
             result = True
         return result
 
+    def get_component_factory(self, cmpid: "CoreSightComponentID") -> Callable:
+        """@brief Simple hook to allow overriding the factory for a CoreSight component.
+
+        @note Use this facility only if strictly necessary. The intention is to quickly define
+            a more flexible solution and deprecate this hook.
+        """
+        assert cmpid.factory
+        return cmpid.factory
