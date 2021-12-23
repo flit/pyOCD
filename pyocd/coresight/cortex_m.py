@@ -893,6 +893,9 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             else:
                 LOG.warning("Timed out waiting for core to halt after reset (state is %s)", self.get_state().name)
 
+        # Restore to original state.
+        self.clear_reset_catch(reset_type)
+
         # Make sure the thumb bit is set in XPSR in case the reset handler
         # points to an invalid address. Only do this if the core is actually halted, otherwise we
         # can't access XPSR.
@@ -900,9 +903,6 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             xpsr = self.read_core_register('xpsr')
             if xpsr & self.XPSR_THUMB == 0:
                 self.write_core_register('xpsr', xpsr | self.XPSR_THUMB)
-
-        # Restore to original state.
-        self.clear_reset_catch(reset_type)
 
     def get_state(self):
         dhcsr = self.read_memory(CortexM.DHCSR)
