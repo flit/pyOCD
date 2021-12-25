@@ -151,7 +151,7 @@ def test_gdb(board_id=None, n=0):
         os.remove(test_result_filename)
 
     # Run the test
-    gdb_args = [PYTHON_GDB, "--nh", "-ex", "set $testn=%d" % n, "--command=%s" % GDB_SCRIPT_PATH]
+    gdb_args = [PYTHON_GDB, "--nh", "-ex", "set $testn=%d" % n, "-ex", "set debug remote 1", "--command=%s" % GDB_SCRIPT_PATH]
     gdb_output_filename = os.path.join(TEST_OUTPUT_DIR, "gdb_output%s_%s_%d.txt" % (get_env_file_name(), board.target_type, n))
     with open(gdb_output_filename, "w") as f:
         LOG.info('Starting gdb (stdout -> %s): %s', gdb_output_filename, ' '.join(gdb_args))
@@ -191,12 +191,6 @@ def test_gdb(board_id=None, n=0):
                 # The server thread is _still_ alive. Not much we can do at this point. Any tests run
                 # past this point will likely fail.
                 LOG.error("Server thread is still alive after stopping gdbservers!")
-
-    try:
-        with open(gdb_output_filename, 'r') as f:
-            LOG.debug('Gdb output:\n%s', f.read())
-    except IOError:
-        pass
 
     # Read back the result
     result.passed = False
