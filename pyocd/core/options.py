@@ -1,7 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
-# Copyright (c) 2022 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,81 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import (Any, Dict, List, NamedTuple, Tuple, Union)
+from typing import (Any, Dict, List, NamedTuple)
 
 class OptionInfo(NamedTuple):
-    # TODO Change 'type' field's type Any, and use Union for multi-typed options instead of a tuple of types.
     name: str
-    type: Union[type, Tuple[type, ...]]
+    type: Any
     default: Any
     help: str
+
+class OptionNames:
+    ARM__ADI__MAX_INVALID_AP_COUNT = 'arm.adi.max_invalid_ap_count' # 'adi.v5.max_invalid_ap_count'
+    ARM__ADI__SWJ__ENABLE = 'arm.adi.swj.enable' # dap_swj_enable
+    ARM__ADI__SWJ__USE_DORMANT = 'arm.adi.swj.use_dormant' # dap_swj_use_dormant
+    CONNECT__ALLOW_NO_CORES = 'connect.allow_no_cores' # 'allow_no_cores'
+    CONNECT__AUTO_UNLOCK = 'connect.auto_unlock' # auto_unlock
+    CONNECT__MODE = 'connect.mode' # 'connect_mode'
+    CONNECT__PROTOCOL = 'connect.protocol' # dap_protocol
+    CACHE__READ_CODE_FROM_ELF = 'cache.read_code_from_elf'
+    FLASH__ERASE_MODE = 'flash.erase_mode' # chip_erase
+    FLASH__FLM__LOG_INFO = 'flash.flm.log_info' # debug.log_flm_info
+    FLASH__ANALYZER__ENABLE = 'flash.analyzer.enable' # fast_program
+    FLASH__TIMEOUT__INIT = 'flash.timeout.init'
+    FLASH__TIMEOUT__ANALYZER = 'flash.timeout.analyzer'
+    FLASH__TIMEOUT__ERASE_ALL = 'flash.timeout.erase_all'
+    FLASH__TIMEOUT__ERASE_SECTOR = 'flash.timeout.erase_sector'
+    FLASH__TIMEOUT__PROGRAM = 'flash.timeout.program'
+    FLASH__PROGRESS__HIDE = 'flash.progress.hide' # hide_programming_progress
+    FLASH__KEEP_UNWRITTEN = 'flash.keep_unwritten' # keep_unwritten
+    CMSIS_DAP__DEFERRED_TRANSFERS = 'cmsis_dap.deferred_transfers'
+    CMSIS_DAP__LIMIT_PACKETS = 'cmsis_dap.limit_packets'
+    CMSIS_DAP__PREFER_V1 = 'cmsis_dap.prefer_v1'
+    COMMANDER__HISTORY_LENGTH = 'commander.history_length'
+    SESSION__CONFIG__FILE = 'session.config.file' # 'config_file'
+    SESSION__CONFIG__DISABLE = 'session.config.disable' # 'no_config'
+    SESSION__PROJECT__DIR = 'session.project.dir' # 'project_dir'
+    DEBUG__TIMEOUT__STEP_INSTRUCTION = 'debug.timeout.step_instruction' # 'cpu.step.instruction.timeout'
+    # debug.traceback
+    MULTICORE__ENABLE = 'multicore.enable' # enable_multicore
+    PROBE__FREQUENCY = 'probe.frequency' # frequency
+    LOGGING = 'logging'
+    CMSIS_PACK__PACKS = 'cmsis_pack.packs' # 'pack'
+    PROBESERVER__PORT = 'probeserver.port'
+    RESET__TYPE = 'reset.type' # 'reset_type'
+    'reset.hold_time'
+    'reset.post_delay'
+    'reset.halt_timeout'
+    'reset.dap_recover.timeout'
+    'reset.core_recover.timeout'
+    'resume_on_disconnect' # disconnect.resume
+    'scan_all_aps' # arm.adi.scan_all_aps
+    'serve_local_only'
+    'smart_flash' # flash.optimize
+    'target_override' # session.target_type
+    'test_binary' # test.firmware
+    'user_script' # session.user_script
+    'warning.cortex_m_default'
+
+    # gdbserver options
+    'enable_semihosting' # semihosting.enable
+    'enable_swv' # swv.enable
+    'debug.status_fault_retry_timeout'
+    'gdbserver_port' # gdbserver.port
+    'persist' # gdbserver.persist
+    'report_core_number' # gdbserver.report_core_number
+    'rtos.enable'
+    'rtos.name'
+    'semihost_console_type' # semihost.console_type
+    'semihost_use_syscalls' # semihost.use_gdb_syscalls
+    'step_into_interrupt' # debug.step_into_interrupts
+    'swv_clock' # swv.frequency
+    'swv_system_clock' # swv.system_frequency
+    'swv_raw_enable' # swv.raw.enable
+    'swv_raw_port' # swv.raw.port
+    'telnet_port' # semihost.telnet.port
+    'vector_catch' # debug.vector_catch
+    'xpsr_control_fields' # gdbserver.xpsr_control_fields
 
 ## @brief Definitions of the builtin options.
 BUILTIN_OPTIONS = [
