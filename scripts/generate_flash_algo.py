@@ -37,7 +37,7 @@ from pyocd.target.pack.flash_algo import PackFlashAlgo
 BLOB_HEADER = '0xe7fdbe00,'
 HEADER_SIZE = 4
 
-STACK_SIZE = 0x200
+STACK_SIZE = 0x800
 
 PYOCD_TEMPLATE = \
 """# pyOCD debugger
@@ -78,7 +78,11 @@ FLASH_ALGO = {
     'page_size' : {{'0x%x' % algo.page_size}},
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
-    'page_buffers' : [{{'0x%08x' % (entry + 4096)}}, {{'0x%08x' % (entry + 4096 + algo.page_size)}}],   # Enable double buffering
+    # Enable double buffering
+    'page_buffers' : [
+        {{'0x%08x' % (page_buffers[0])}},
+        {{'0x%08x' % (page_buffers[1])}}
+    ],
     'min_program_length' : {{'0x%x' % algo.page_size}},
 
     # Relative region addresses and sizes
@@ -131,7 +135,7 @@ class PackFlashAlgoGenerator(PackFlashAlgo):
             blob = binascii.b2a_hex(self.algo_data)
             line_list = []
             for i in range(0, len(blob), group_size):
-                line_list.append('"' + blob[i:i + group_size] + '"')
+                line_list.append('"' + blob[i:i + group_size].decode() + '"')
             return ("\n" + padding).join(line_list)
         elif fmt == "c":
             blob = self.algo_data[:]
@@ -145,7 +149,7 @@ class PackFlashAlgoGenerator(PackFlashAlgo):
                 line_list.append(", ".join(group))
             return (",\n" + padding).join(line_list)
         else:
-            raise Exception("Unsupported format %s" % fmt)
+            raise ValueError("Unsupported format %s" % fmt)
 
     def process_template(self, template_text, data_dict=None):
         """
@@ -184,7 +188,7 @@ def main():
     parser.add_argument('-c', '--copyright', help="Set copyright owner.")
     args = parser.parse_args()
 
-    if not args.copyright:
+    if not args.copyright and not args.info_only:
         print(f"{colorama.Fore.YELLOW}Warning! No copyright owner was specified. Defaulting to \"PyOCD Authors\". "
             f"Please set via --copyright, or edit output.{colorama.Style.RESET_ALL}")
 
@@ -199,14 +203,41 @@ def main():
 
         print(algo.flash_info)
 
-        if args.info_only:
-            return
-
-        # Allocate stack after algo and its rw data, with top and bottom rounded to 8 bytes.
-        stack_base = args.blob_start + HEADER_SIZE + algo.rw_start + algo.rw_size
+        # Allocate stack after algo and its rw/zi data, with top and bottom rounded to 8 bytes.
+        stack_base = (args.blob_start + HEADER_SIZE
+                        + algo.rw_start + algo.rw_size # rw_start incorporates instruction size
+                        + algo.zi_size)
         stack_base = (stack_base + 7) // 8 * 8
         sp = stack_base + args.stack_size
         sp = (sp + 7) // 8 * 8
+
+        page_buffers = [
+            ((sp + algo.page_size - 1) // algo.page_size * algo.page_size),
+            ((sp + algo.page_size - 1) // algo.page_size * algo.page_size) + algo.page_size,
+        ]
+
+        # Increase stack size by placing the SP at the base of first page buffer.
+        sp = page_buffers[0]
+
+        print(f"load addr:   {args.blob_start:#010x}")
+        print(f"header:      {HEADER_SIZE:#x} bytes")
+        print(f"data:        {len(algo.algo_data):#x} bytes")
+        print(f"ro:          {algo.ro_start:#010x} + {algo.ro_size:#x} bytes")
+        print(f"rw:          {algo.rw_start:#010x} + {algo.rw_size:#x} bytes")
+        print(f"zi:          {algo.zi_start:#010x} + {algo.zi_size:#x} bytes")
+        print(f"stack:       {stack_base:#010x} .. {sp:#010x} ({sp - stack_base:#x} bytes)")
+        print(f"buffer[0]:   {page_buffers[0]:#010x}")
+        print(f"buffer[1]:   {page_buffers[1]:#010x}")
+
+        print("\nSymbol offsets:")
+        for n, v in algo.symbols.items():
+            print(f"{n}:{' ' * (11 - len(n))} {v:#010x}")
+
+        if args.info_only:
+            return
+
+        if len(algo.sector_sizes) > 1:
+            print(f"{colorama.Fore.YELLOW}Warning! Flash has more than one sector size. Remember to create one flash memory region for each sector size range.{colorama.Style.RESET_ALL}")
 
         data_dict = {
             'name': os.path.splitext(os.path.split(args.elf_path)[-1])[0],
@@ -214,6 +245,7 @@ def main():
             'header_size': HEADER_SIZE,
             'entry': args.blob_start,
             'stack_pointer': sp,
+            'page_buffers': page_buffers,
             'year': datetime.now().year,
             'copyright_owner': args.copyright or "PyOCD Authors",
         }
