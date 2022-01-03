@@ -22,9 +22,11 @@ from time import sleep
 from ...coresight import ap
 from ...coresight.cortex_m import CortexM
 from ...core import exceptions
+from ...core.memory_map import (MemoryType, RamRegion)
 from ...core.target import Target
 from ...coresight.coresight_target import CoreSightTarget
 from ...utility.timeout import Timeout
+from ..pack.flash_algo import PackFlashAlgo
 
 MDM_STATUS = 0x00000000
 MDM_CTRL = 0x00000004
@@ -303,4 +305,24 @@ class Kinetis(CoreSightTarget):
         else:
             LOG.error("Failed to unlock. MDM status: 0x%x", val)
             return False
+
+    def _get_create_flash_ram_region(self, pack_algo: PackFlashAlgo, page_size: int) -> RamRegion:
+        """@brief Returns the memory region that will be used for flash programming.
+
+        This overrides the default implementation to ensure that RAM from the system space is
+        selected. This also ensures that FlexRAM (at 0x14000000) is not used, since it cannot be accessed
+        simultaneously with flash, thus making it impossible to use for flash algo code and buffers.
+
+        @return RamRegion instance that will be used for flash programming.
+        @exception TargetSupportError Raised if no appropriate RAM region can be found.
+        """
+        min_ram = pack_algo.get_required_ram(page_size)
+        region = self.memory_map.get_first_matching_region(
+                type=MemoryType.RAM,
+                is_default=True,
+                start=lambda x: x >= 0x2000_0000,
+                length=lambda x: x >= min_ram)
+        if not region:
+            raise exceptions.TargetSupportError("no suitable RAM region found for flash algorithm")
+        return cast(RamRegion, region)
 
