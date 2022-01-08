@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2022 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +18,17 @@ from ..family.target_lpc5500 import LPC5500Family
 from ...core.memory_map import (FlashRegion, RamRegion, RomRegion, MemoryMap)
 from ...debug.svd.loader import SVDFile
 
+# Generated from 'LPC55XX_640.FLM' (LPC55xx IAP 608kB Flash)
+# Originating from 'NXP.LPC55S69_DFP.13.1.0.pack'
+# digest = c672c27550f789743829bb8832245f8c6f0c8ea81b9291b53827849eeabbe52c, file size = 22316
+# algo version = 0x101, algo size = 1696 (0x6a0)
 # Note: the DFP has both S and NS flash algos, but they are exactly the same except for the address range.
 FLASH_ALGO = {
     'load_address' : 0x20000000,
 
     # Flash algorithm as a hex string
     'instructions': [
-    0xE00ABE00, 0x062D780D, 0x24084068, 0xD3000040, 0x1E644058, 0x1C49D1FA, 0x2A001E52, 0x4770D1F2,
+    0xe7fdbe00,
     0xf240b580, 0xf2c00004, 0xf6420000, 0xf84961e0, 0xf2401000, 0xf2c52000, 0x21000000, 0x1080f8c0,
     0x1084f8c0, 0x1180f8c0, 0x71fbf647, 0xf6406001, 0x21ff6004, 0x0000f2c5, 0x01def2cc, 0xf04f6001,
     0x210240a0, 0xf2407001, 0xf2c00010, 0x44480000, 0xf874f000, 0xbf182800, 0xbd802001, 0x47702000,
@@ -81,20 +85,32 @@ FLASH_ALGO = {
     ],
 
     # Relative function addresses
-    'pc_init': 0x20000021,
-    'pc_unInit': 0x2000007d,
-    'pc_program_page': 0x200000d1,
-    'pc_erase_sector': 0x200000a9,
-    'pc_eraseAll': 0x20000081,
+    'pc_init': 0x20000005,
+    'pc_unInit': 0x20000061,
+    'pc_program_page': 0x200000b5,
+    'pc_erase_sector': 0x2000008d,
+    'pc_eraseAll': 0x20000065,
 
-    'static_base' : 0x20000000 + 0x00000020 + 0x00000650,
-    'begin_stack' : 0x20000900,
+    'static_base' : 0x20000000 + 0x00000004 + 0x00000650,
+    'begin_stack' : 0x20001000,
     'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x200,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
-    'page_buffers' : [0x20001000, 0x20001200],   # Enable double buffering
+    # Enable double buffering
+    'page_buffers' : [
+        0x20001000,
+        0x20001200
+    ],
     'min_program_length' : 0x200,
+
+    # Relative region addresses and sizes
+    'ro_start': 0x0,
+    'ro_size': 0x650,
+    'rw_start': 0x650,
+    'rw_size': 0x4,
+    'zi_start': 0x654,
+    'zi_size': 0x48,
 
     # Flash information
     'flash_start': 0x0,
