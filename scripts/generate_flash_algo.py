@@ -19,6 +19,7 @@
 import os
 import argparse
 import colorama
+import hashlib
 from datetime import datetime
 import struct
 import binascii
@@ -56,6 +57,12 @@ PYOCD_TEMPLATE = \
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Generated from '{{ filename }}'{%- if algo.flash_info.name %}{{ " (%s)" % algo.flash_info.name.decode('utf-8') }}{% endif %}
+{%- if pack_file %}
+# Originating from '{{ pack_file }}'
+{%- endif %}
+# digest = {{ digest }}, file size = {{ file_size}}
+# {{ 'algo version = 0x%x, algo size = %d (0x%x)' % (algo.flash_info.version, algo_size + header_size, algo_size + header_size) }}
 FLASH_ALGO = {
     'load_address' : {{'0x%08x' % entry}},
 
@@ -179,6 +186,7 @@ def main():
                         "address of the flash blob in target RAM.")
     parser.add_argument("--stack-size", default=STACK_SIZE, type=str_to_num, help="Stack size for the algo "
                         f"(default {STACK_SIZE}).")
+    parser.add_argument("--pack-path", default=None, help="Path to pack file from which flash algo is from")
     parser.add_argument("-i", "--info-only", action="store_true", help="Only print information about the flash "
                         "algo, do not generate a blob.")
     parser.add_argument("-o", "--output", default="pyocd_blob.py", help="Path of output file "
@@ -231,15 +239,39 @@ def main():
 
         print("\nSymbol offsets:")
         for n, v in algo.symbols.items():
+            if v >= 0xffffffff:
+                continue
             print(f"{n}:{' ' * (11 - len(n))} {v:#010x}")
 
         if args.info_only:
             return
 
+        pack_file = None
+        if args.pack_path and os.path.exists(args.pack_path) and 'cmsis-pack-manager' in args.pack_path:
+            (rest, version) = (os.path.split(args.pack_path))
+            (rest, pack) = (os.path.split(rest))
+            (_, vendor) = (os.path.split(rest))
+            pack_file = '%s.%s.%s' % (vendor, pack, version)
+        elif args.pack_path:
+            pack_file = os.path.split(args.pack_path)[-1]
+        else:
+            print(f"{colorama.Fore.YELLOW}Warning! No CMSIS Pack was set."
+                f"Please set the path or file name of the CMSIS pack via --pack-path.{colorama.Style.RESET_ALL}")
+
+        file_handle.seek(0)
+        flm_content = file_handle.read()
+        hash = hashlib.sha256()
+        hash.update(flm_content)
+
         if len(algo.sector_sizes) > 1:
             print(f"{colorama.Fore.YELLOW}Warning! Flash has more than one sector size. Remember to create one flash memory region for each sector size range.{colorama.Style.RESET_ALL}")
 
         data_dict = {
+            'filename': os.path.split(args.elf_path)[-1],
+            'digest': hash.hexdigest(),
+            'file_size': len(flm_content),
+            'pack_file': pack_file,
+            'algo_size': len(algo.algo_data),
             'name': os.path.splitext(os.path.split(args.elf_path)[-1])[0],
             'prog_header': BLOB_HEADER,
             'header_size': HEADER_SIZE,
