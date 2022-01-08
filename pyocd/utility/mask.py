@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2019 Arm Limited
-# Copyright (c) 2022 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 import operator
 from functools import reduce
-from typing import (Any, Optional, Sequence, Tuple, Union)
+from typing import (Any, Sequence, Tuple, Union)
 
 def bitmask(*args: Union[int, Sequence[int], Tuple[int, int]]) -> int:
     """@brief Returns a mask with specified bit ranges set.
@@ -28,7 +28,7 @@ def bitmask(*args: Union[int, Sequence[int], Tuple[int, int]]) -> int:
     is the combination of masks produced by the arguments.
 
     - 2-tuple: The tuple is a bit range with the first element being the MSB and the
-          second element the LSB. All bits from LSB up to and included MSB are set.
+          second element the LSB. All bits from LSB up to and including MSB are set.
     - list: Each bit position specified by the list elements is set.
     - int: The specified bit position is set.
 
@@ -84,39 +84,6 @@ def bfi(value: int, msb: int, lsb: int, field: int) -> int:
     value &= ~mask
     value |= (field << lsb) & mask
     return value
-
-class Bitfield:
-    """@brief Represents a bitfield of a register."""
-
-    def __init__(self, msb: int, lsb: Optional[int] = None, name: Optional[str] = None):
-        self._msb = msb
-        self._lsb = lsb if (lsb is not None) else msb
-        self._name = name
-        assert self._msb >= self._lsb
-
-    @property
-    def width(self) -> int:
-        return self._msb - self._lsb + 1
-
-    def get(self, value: int) -> int:
-        """@brief Extract the bitfield value from a register value.
-        @param self The Bitfield object.
-        @param value Integer register value.
-        @return Integer value of the bitfield extracted from `value`.
-        """
-        return bfx(value, self._msb, self._lsb)
-
-    def set(self, register_value: int, field_value: int) -> int:
-        """@brief Modified the bitfield in a register value.
-        @param self The Bitfield object.
-        @param register_value Integer register value.
-        @param field_value New value for the bitfield. Must not be shifted into place already.
-        @return Integer register value with the bitfield updated to `field_value`.
-        """
-        return bfi(register_value, self._msb, self._lsb, field_value)
-
-    def __repr__(self) -> str:
-        return "<{}@{:x} name={} {}:{}>".format(self.__class__.__name__, id(self), self._name, self._msb, self._lsb)
 
 def msb(n: int) -> int:
     """@brief Return the bit number of the highest set bit."""
