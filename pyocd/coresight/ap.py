@@ -1033,6 +1033,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
+            error.resource = 'memory'
+            error.operation = 'write'
             error.fault_address = addr
             error.fault_length = transfer_size // 8
             raise
@@ -1086,6 +1088,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
+            error.resource = 'memory'
+            error.operation = 'read'
             error.fault_address = addr
             error.fault_length = transfer_size // 8
             raise
@@ -1110,6 +1114,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             except exceptions.TransferFaultError as error:
                 # Annotate error with target address.
                 self._handle_error(error, num)
+                error.resource = 'memory'
+                error.operation = 'read'
                 error.fault_address = addr
                 error.fault_length = transfer_size // 8
                 raise
@@ -1142,6 +1148,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
+            error.resource = 'memory'
+            error.operation = 'write'
             error.fault_address = addr
             error.fault_length = len(data) * 4
             raise
@@ -1169,6 +1177,8 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         except exceptions.TransferFaultError as error:
             # Annotate error with target address.
             self._handle_error(error, num)
+            error.resource = 'memory'
+            error.operation = 'read'
             error.fault_address = addr
             error.fault_length = size * 4
             raise

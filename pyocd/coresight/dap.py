@@ -875,6 +875,13 @@ class DebugPort(DelegateHavingMixIn):
             did_lock = self._select_ap(addr)
             TRACE.debug("write_ap:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.probe.write_ap(addr, data)
+        except exceptions.TransferFaultError as error:
+            # Annotate error.
+            self._handle_error(error, num)
+            error.resource = 'AP'
+            error.operation = 'write'
+            error.fault_address = addr
+            raise
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
@@ -906,11 +913,22 @@ class DebugPort(DelegateHavingMixIn):
         try:
             did_lock = self._select_ap(addr)
             result_cb = self.probe.read_ap(addr, now=False)
+        except exceptions.TransferFaultError as error:
+            # Annotate error.
+            self._handle_error(error, num)
+            error.resource = 'AP'
+            error.operation = 'read'
+            error.fault_address = addr
+            if did_lock:
+                self.unlock()
+            raise
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             if did_lock:
                 self.unlock()
             raise
+        # Note: do not try to convert this to a 'finally' statement; the lock must remained locked until
+        # read_ap_cb() is invoked.
         except Exception:
             if did_lock:
                 self.unlock()
@@ -922,6 +940,13 @@ class DebugPort(DelegateHavingMixIn):
                 result = result_cb()
                 TRACE.debug("read_ap:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
                 return result
+            except exceptions.TransferFaultError as error:
+                # Annotate error.
+                self._handle_error(error, num)
+                error.resource = 'AP'
+                error.operation = 'read'
+                error.fault_address = addr
+                raise
             except exceptions.TargetError as error:
                 TRACE.debug("read_ap:%06d %s(addr=0x%08x) -> error (%s)", num, "" if now else "...", addr, error)
                 self._handle_error(error, num)
@@ -945,6 +970,13 @@ class DebugPort(DelegateHavingMixIn):
             did_lock = self._select_ap(addr)
             TRACE.debug("write_ap_multiple:%06d (addr=0x%08x) = (%i values)", num, addr, len(values))
             return self.probe.write_ap_multiple(addr, values)
+        except exceptions.TransferFaultError as error:
+            # Annotate error.
+            self._handle_error(error, num)
+            error.resource = 'AP'
+            error.operation = 'write'
+            error.fault_address = addr
+            raise
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
@@ -978,11 +1010,20 @@ class DebugPort(DelegateHavingMixIn):
             did_lock = self._select_ap(addr)
             TRACE.debug("read_ap_multiple:%06d (addr=0x%08x, count=%i)", num, addr, count)
             result_cb = self.probe.read_ap_multiple(addr, count, now=False)
+        except exceptions.TransferFaultError as error:
+            # Annotate error.
+            self._handle_error(error, num)
+            error.resource = 'AP'
+            error.operation = 'read'
+            error.fault_address = addr
+            raise
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             if did_lock:
                 self.unlock()
             raise
+        # Note: do not try to convert this to a 'finally' statement; the lock must remained locked until
+        # read_ap_multiple_cb() is invoked.
         except Exception:
             if did_lock:
                 self.unlock()
@@ -992,6 +1033,15 @@ class DebugPort(DelegateHavingMixIn):
         def read_ap_multiple_cb() -> Sequence[int]:
             try:
                 return result_cb()
+            except exceptions.TransferFaultError as error:
+                TRACE.debug("read_ap_multiple:%06d %s(addr=0x%08x) -> error (%s)", num, "" if now else "...", addr, error)
+                self._handle_error(error, num)
+
+                # Annotate error.
+                error.resource = 'AP'
+                error.operation = 'read'
+                error.fault_address = addr
+                raise
             except exceptions.TargetError as error:
                 TRACE.debug("read_ap_multiple:%06d %s(addr=0x%08x) -> error (%s)", num, "" if now else "...", addr, error)
                 self._handle_error(error, num)

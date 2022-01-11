@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +14,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from typing import (Any, Optional)
 
 class Error(RuntimeError):
     """@brief Parent of all errors pyOCD can raise"""
@@ -62,54 +65,91 @@ class TransferTimeoutError(TransferError):
     pass
 
 class TransferFaultError(TransferError):
-    """@brief A memory fault occurred.
+    """@brief A transfer fault occurred.
 
-    This exception class is extended to optionally record the start address and an optional length of the
-    attempted memory access that caused the fault. The address and length, if available, will be included
-    in the description of the exception when it is converted to a string.
+    This exception class is extended to optionally record the destination resource (memory/AP), start address,
+    optional length, and operation (read/write) of the attempted transfer that caused the fault. The metadata,
+    if available, will be included in the description of the exception when it is converted to a string.
 
-    Positional arguments passed to the constructor are passed through to the superclass'
-    constructor, and thus operate like any other standard exception class. Keyword arguments of
-    'fault_address' and 'length' can optionally be passed to the constructor to initialize the fault
-    start address and length. Alternatively, the corresponding property setters can be used after
-    the exception is created.
+    Positional arguments passed to the constructor are passed through to the superclass' constructor, and thus
+    operate like any other standard exception class. Keyword arguments of 'resource', 'fault_address', 'length',
+    and 'operation' can optionally be passed to the constructor to initialize the fault start address and length.
+    Alternatively, the corresponding property setters can be used after the exception is created.
     """
-    def __init__(self, *args, **kwargs):
-        super(TransferFaultError, self).__init__(*args)
-        self._address = kwargs.get('fault_address', None)
-        self._length = kwargs.get('length', None)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """@brief Constructor.
+
+        Accepts these keyword arguments to set transfer metadata:
+        - `resource`
+        - `fault_address`
+        - `length`
+        - `operation`
+        """
+        super().__init__(*args)
+        self._resource: Optional[str] = kwargs.get('resource', None)
+        self._operation: Optional[str] = kwargs.get('operation', None)
+        self._address: Optional[int] = kwargs.get('fault_address', None)
+        self._length: Optional[int] = kwargs.get('length', None)
 
     @property
-    def fault_address(self):
+    def resource(self) -> Optional[str]:
+        return self._resource
+
+    @resource.setter
+    def resource(self, value: str) -> None:
+        self._resource = value
+
+    @property
+    def operation(self) -> Optional[str]:
+        return self._operation
+
+    @operation.setter
+    def operation(self, value: str) -> None:
+        self._operation = value
+
+    @property
+    def fault_address(self) -> Optional[int]:
         return self._address
 
     @fault_address.setter
-    def fault_address(self, addr):
+    def fault_address(self, addr: int) -> None:
         self._address = addr
 
     @property
-    def fault_end_address(self):
-        return (self._address + self._length - 1) if (self._length is not None) else self._address
+    def fault_end_address(self) -> Optional[int]:
+        if (self._address is not None) and (self._length is not None):
+            return self._address + self._length - 1
+        else:
+            return self._address
 
     @property
-    def fault_length(self):
+    def fault_length(self) -> Optional[int]:
         return self._length
 
     @fault_length.setter
-    def fault_length(self, length):
+    def fault_length(self, length: int) -> None:
         self._length = length
 
-    def __str__(self):
-        desc = "Memory transfer fault"
+    def __str__(self) -> str:
+        if self.operation is not None:
+            if self.resource is not None:
+                desc = f"{self.resource.capitalize()} {self.operation} fault"
+            else:
+                desc = f"{self.operation.capitalize()} fault"
+        else:
+            if self.resource is not None:
+                desc = f"{self.resource.capitalize()} fault"
+            else:
+                desc = "Transfer fault"
         if self.args:
             if len(self.args) == 1:
-                desc += " (" + str(self.args[0]) + ")"
+                desc += f" ({self.args[0]})"
             else:
-                desc += " " + str(self.args) + ""
+                desc += f" {self.args}"
         if self._address is not None:
-            desc += " @ 0x%08x" % self._address
+            desc += f" @ {self.fault_address:#010x}"
             if self._length is not None:
-                desc += "-0x%08x" % self.fault_end_address
+                desc += f"-{self.fault_end_address:#010x}"
         return desc
 
 class FlashFailure(TargetError):
