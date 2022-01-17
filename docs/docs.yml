@@ -21,6 +21,9 @@
   - memory_attributes
   - target_family_notes
   - faq
+- title: pyocd command
+  docs:
+  - subcommands/command_line_overview
 - title: Reference
   docs:
   - terminology
