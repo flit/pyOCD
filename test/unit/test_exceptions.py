@@ -91,36 +91,42 @@ class TestFlashFailure:
     def test_no_args(self):
         e = FlashFailure()
         assert str(e) == ""
-        assert e.address == None
-        assert e.result_code == None
+        assert e.address is None
+        assert e.result_code is None
+        assert e.operation is None
 
     def test_msg(self):
         e = FlashFailure("something exploded")
         assert str(e) == "something exploded"
-        assert e.address == None
-        assert e.result_code == None
+        assert e.address is None
+        assert e.result_code is None
+        assert e.operation is None
 
     def test_addr(self):
         e = FlashFailure(address=0x4000)
         assert str(e) == "(address 0x00004000)"
         assert e.address == 0x4000
-        assert e.result_code == None
+        assert e.result_code is None
+        assert e.operation is None
 
     def test_code(self):
         e = FlashFailure(result_code=0x104)
         assert str(e) == "(result code 0x104)"
-        assert e.address == None
+        assert e.address is None
         assert e.result_code == 0x104
+        assert e.operation is None
 
     def test_addr_code(self):
         e = FlashFailure(address=0x4000, result_code=0x104)
         assert str(e) == "(address 0x00004000; result code 0x104)"
         assert e.address == 0x4000
         assert e.result_code == 0x104
+        assert e.operation is None
 
     def test_msg_addr_code(self):
         e = FlashFailure("major error", address=0x4000, result_code=0x104)
         assert str(e) == "major error (address 0x00004000; result code 0x104)"
         assert e.address == 0x4000
         assert e.result_code == 0x104
+        assert e.operation is None
 

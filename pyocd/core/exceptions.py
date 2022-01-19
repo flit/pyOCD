@@ -160,26 +160,33 @@ class FlashFailure(TargetError):
     failed and/or result code from the algorithm can optionally be recorded in the exception, if
     passed to the constructor as 'address' and 'result_code' keyword arguments.
     """
-    def __init__(self, *args, **kwargs):
-        super(FlashFailure, self).__init__(*args)
-        self._address = kwargs.get('address', None)
-        self._result_code = kwargs.get('result_code', None)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args)
+        self._address: Optional[int] = kwargs.get('address', None)
+        self._result_code: Optional[int] = kwargs.get('result_code', None)
+        self._operation: Optional[str] = kwargs.get('operation', None)
 
     @property
-    def address(self):
+    def address(self) -> Optional[int]:
         return self._address
 
     @property
-    def result_code(self):
+    def result_code(self) -> Optional[int]:
         return self._result_code
 
-    def __str__(self):
-        desc = super(FlashFailure, self).__str__()
+    @property
+    def operation(self) -> Optional[str]:
+        return self._operation
+
+    def __str__(self) -> str:
+        desc = super().__str__()
         parts = []
+        if self.operation is not None:
+            parts.append(f"{self.operation} operation")
         if self.address is not None:
-            parts.append("address 0x%08x" % self.address)
+            parts.append(f"address {self.address:#010x}")
         if self.result_code is not None:
-            parts.append("result code 0x%x" % self.result_code)
+            parts.append(f"result code {self.result_code:#x}")
         if parts:
             if desc:
                 desc += " "
