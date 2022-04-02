@@ -262,6 +262,20 @@ class STLink(object):
             if response[0] != Status.JTAG_CONF_CHANGED:
                 self._check_status(response[0:2])
 
+    def set_frequency(self, freq: Union[int, float]):
+        with self._lock:
+            ifreq = int(freq)
+            if self._protocol is None:
+                # No protocol is selected yet, so set both SWD and JTAG.
+                self.set_swd_frequency(ifreq)
+                self.set_jtag_frequency(ifreq)
+            elif self._hw_version >= 3:
+                self.set_com_frequency(self._protocol, ifreq)
+            elif self._protocol == self.Protocol.SWD:
+                self.set_swd_frequency(ifreq)
+            elif self._protocol == self.Protocol.JTAG:
+                self.set_jtag_frequency(ifreq)
+
     def set_swd_frequency(self, freq: Union[int, float] = 1800000):
         with self._lock:
             if self._hw_version >= 3:
@@ -323,7 +337,12 @@ class STLink(object):
                 protocolParam = Commands.JTAG_ENTER_JTAG_NO_CORE_RESET
             else:
                 raise ValueError(protocol)
-            response = self._device.transfer([Commands.JTAG_COMMAND, Commands.JTAG_ENTER2, protocolParam, 0], readSize=2)
+
+            # Non-zero value requests no init of AP#0, ignored by firmware earlier than V2J32/V3J2.
+            ap_param = 1
+
+            cmd = [Commands.JTAG_COMMAND, Commands.JTAG_ENTER2, protocolParam, ap_param]
+            response = self._device.transfer(cmd, readSize=2)
             self._check_status(response)
             self._protocol = protocol
 

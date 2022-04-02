@@ -29,12 +29,19 @@ from .stlink.detect.factory import create_mbed_detector
 from ..board.mbed_board import MbedBoard
 from ..board.board_ids import BOARD_ID_TO_INFO
 from ..utility import conversion
+from ..core import exceptions
 
 if TYPE_CHECKING:
     from ..board.board_ids import BoardInfo
 
 class StlinkProbe(DebugProbe):
     """@brief Wraps an STLink as a DebugProbe."""
+
+    ## Silly little map from one protocol enum to the other.
+    PROTOCOL_MAP: Dict[DebugProbe.Protocol, STLink.Protocol] = {
+        DebugProbe.Protocol.SWD: STLink.Protocol.SWD,
+        DebugProbe.Protocol.JTAG: STLink.Protocol.JTAG,
+    }
 
     _board_id: Optional[str]
 
@@ -65,7 +72,7 @@ class StlinkProbe(DebugProbe):
         self._caps = set()
 
     @property
-    def board_id(self) -> str:
+    def board_id(self) -> Optional[str]:
         """@brief Lazily loaded 4-character board ID."""
         if self._board_id is None:
             self._board_id = self._get_board_id()
@@ -179,19 +186,29 @@ class StlinkProbe(DebugProbe):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol=None):
-        self._link.enter_debug(STLink.Protocol.SWD)
+        if (protocol is None) or (protocol == DebugProbe.Protocol.DEFAULT):
+            st_protocol = STLink.Protocol.SWD
+        else:
+            st_protocol = self.PROTOCOL_MAP[protocol]
+        self._link.enter_debug(st_protocol)
         self._is_connected = True
 
     def disconnect(self):
-        # TODO Close the APs. When this is attempted, we get an undocumented 0x1d error. Doesn't
-        #      seem to be necessary, anyway.
+        # Close all opened APs.
+        for apnum in self._memory_interfaces.keys():
+            # When this is attempted with some STLink firmware verions, we get an
+            # undocumented 0x1d error. Doesn't seem to be a problem, so just ignore it.
+            try:
+                self._link.close_ap(apnum)
+            except exceptions.Error:
+                pass
         self._memory_interfaces = {}
 
         self._link.enter_idle()
         self._is_connected = False
 
     def set_clock(self, frequency):
-        self._link.set_swd_frequency(frequency)
+        self._link.set_frequency(frequency)
 
     def reset(self):
         assert self.session
