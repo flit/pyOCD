@@ -85,6 +85,7 @@ class EraseSubcommand(SubcommandBase):
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
                             connect_mode=self._args.connect_mode,
+                            dap_protocol=self._args.dap_protocol,
                             options=convert_session_options(self._args.options))
         if session is None:
             LOG.error("No device available to erase")

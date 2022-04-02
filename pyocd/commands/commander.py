@@ -213,6 +213,7 @@ class PyOCDCommander:
                         target_override=self.args.target_override,
                         connect_mode=connect_mode,
                         frequency=self.args.frequency,
+                        dap_protocol=self.args.dap_protocol,
                         options=options,
                         option_defaults=dict(
                             auto_unlock=False,

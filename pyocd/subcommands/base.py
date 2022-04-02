@@ -91,6 +91,8 @@ class SubcommandBase:
             help="Do not wait for a probe to be connected if none are available.")
         CONNECT_GROUP.add_argument("-M", "--connect", dest="connect_mode", metavar="MODE",
             help="Select connect mode from one of (halt, pre-reset, under-reset, attach).")
+        CONNECT_GROUP.add_argument("--wire-protocol", dest="dap_protocol",
+            help="SWD or JTAG wire protocol selection.")
 
     @classmethod
     def add_subcommands(cls, parser: argparse.ArgumentParser) -> None:
@@ -154,7 +156,7 @@ class SubcommandBase:
             for logger in loggers:
                 logging.getLogger(logger).setLevel(level)
 
-    def _get_pretty_table(self, fields: List[str], header: bool = None) -> prettytable.PrettyTable:
+    def _get_pretty_table(self, fields: List[str], header: Optional[bool] = None) -> prettytable.PrettyTable:
         """@brief Returns a PrettyTable object with formatting options set."""
         pt = prettytable.PrettyTable(fields)
         pt.align = 'l'

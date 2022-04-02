@@ -183,6 +183,7 @@ class GdbserverSubcommand(SubcommandBase):
                 target_override=self._args.target_override,
                 frequency=self._args.frequency,
                 connect_mode=self._args.connect_mode,
+                dap_protocol=self._args.dap_protocol,
                 options=sessionOptions)
             if session is None:
                 LOG.error("No probe selected.")

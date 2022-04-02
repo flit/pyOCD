@@ -84,6 +84,7 @@ class ResetSubcommand(SubcommandBase):
                             connect_mode=self._args.connect_mode,
                             resume_on_disconnect=not self._args.halt,
                             reset_type=self._args.reset_type,
+                            dap_protocol=self._args.dap_protocol,
                             options=convert_session_options(self._args.options))
         if session is None:
             LOG.error("No target device available to reset")
