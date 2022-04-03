@@ -394,8 +394,8 @@ class CMSISDAPProtocol(object):
         @param self
         @param sequences A sequence of sequence description tuples as described above.
 
-        @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
-            sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
+        @return A 2-tuple of the response status, and a sequence of ints, one for each input
+            sequence. Bits are in LSB first order.
         """
         cmd = [Command.DAP_SWD_SEQUENCE]
         cmd.append(len(sequences))
@@ -484,8 +484,18 @@ class CMSISDAPProtocol(object):
             # DAP JTAG Sequence failed
             raise DAPAccessIntf.CommandError("DAP_JTAG_SEQUENCE failed")
 
-        if len(resp) > 2:
-            return resp[2]
+        if read_tdo:
+            expected_tdo_data_length = (cycles + 7) // 8
+            if (len(resp) - 2) < expected_tdo_data_length:
+                raise DAPAccessIntf.CommandError("DAP_JTAG_SEQUENCE response data is short")
+
+            # Convert TDO byte list into an int.
+            tdo = 0
+            for offset, tdo_byte in enumerate(resp[2:2 + expected_tdo_data_length]):
+                tdo |= (tdo_byte << (8 * offset))
+            return tdo
+        else:
+            return None
 
     def jtag_configure(self, devices_irlen=None):
         # Default to a single device with an IRLEN of 4.

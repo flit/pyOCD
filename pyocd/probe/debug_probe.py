@@ -326,8 +326,8 @@ class DebugProbe:
         @param self
         @param sequences A sequence of sequence description tuples as described above.
 
-        @return A 2-tuple of the response status, and a sequence of bytes objects, one for each input
-            sequence. The length of the bytes object is (<TCK-count> + 7) / 8. Bits are in LSB first order.
+        @return A 2-tuple of the response status, and a sequence of ints, one for each input
+            sequence. Bits are in LSB first order.
         """
         raise NotImplementedError()
 
