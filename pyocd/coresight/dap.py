@@ -248,11 +248,8 @@ class DPConnector:
                     # If we're using the SWJ sequence, then for JTAG it ensures we end up in Test-Logic-Reset.
                     if send_swj:
                         swj.select_protocol(protocol)
-                    elif protocol == DebugProbe.Protocol.JTAG:
-                        swj.jtag_enter_test_logic_reset()
-                        self._probe.swj_sequence(1, 0) # move from Test-Logic-Reset to Run-Test/Idle
-                        idcode = self._probe._link.jtag_idcode()
-                        LOG.info("JTAG IDCODE = 0x%08x", idcode)
+
+                    self._probe.protocol_setup()
 
                     if use_jtag_enter_run_test_idle:
                         jtag_enter_run_test_idle()

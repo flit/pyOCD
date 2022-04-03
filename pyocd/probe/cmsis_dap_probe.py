@@ -345,6 +345,114 @@ class CMSISDAPProbe(DebugProbe):
         assert actual_mode is not None
         self._protocol = self._PORT_TO_PROTOCOL[actual_mode]
 
+    def _get_ir_len(self) -> List[int]:
+        # Enter Run-Test/Idle.
+        #   8 cycles with TMS=1 -> Test-Logic-Reset
+        #   1 cycle with TMS=0  -> Run-Test/Idle
+        self.swj_sequence(9, 0xff)
+
+        # --(TMS=1)--> Select-DR-Scan --(TMS=1)--> Select-IR-Scan
+        self.jtag_sequence(cycles=2, tms=1, read_tdo=False, tdi=0x3)
+
+        # --(TMS=0)--> Capture-IR --(TMS=0)--> Shift-IR
+        self.jtag_sequence(cycles=2, tms=0, read_tdo=False, tdi=0x3)
+
+        # Capture 64 bits of TDO with TDI=1, TMS=0
+        tdo = self.jtag_sequence(cycles=64, tms=0, read_tdo=True, tdi=0xffffffffffffffff)
+        assert tdo is not None
+        LOG.info("TDO = %016x", tdo)
+
+        irlens: List[int] = []
+        tdo_bit_count = 64
+
+        while tdo & 0xffffffff != 0xffffffff:
+            # Count 1 bits
+            count = 0
+            while ((tdo & 1) == 1) and (count < 32):
+                count += 1
+                tdo >>= 1
+                tdo_bit_count -= 1
+                if tdo_bit_count < 32:
+                    # Get another 32 bits of TDO with TDI=1, TMS=0
+                    more_tdo = self.jtag_sequence(cycles=32, tms=0, read_tdo=True, tdi=0xffffffff)
+                    assert more_tdo is not None
+                    LOG.info("TDO = %016x", more_tdo)
+
+                    tdo |= more_tdo << tdo_bit_count
+                    tdo_bit_count += 32
+
+            # Count 0 bits
+            count = 1
+            while ((tdo & 1) == 0) and (count < 32):
+                count += 1
+                tdo >>= 1
+                tdo_bit_count -= 1
+
+            irlens.append(count)
+            LOG.info("irlen = %d", count)
+
+        return irlens
+
+    def _get_jtag_ids(self) -> List[int]:
+        # Enter Run-Test/Idle.
+        #   8 cycles with TMS=1 -> Test-Logic-Reset
+        #   1 cycle with TMS=0  -> Run-Test/Idle
+        self.swj_sequence(9, 0xff)
+
+        # --(TMS=1)--> Select-DR-Scan
+        self.jtag_sequence(cycles=1, tms=1, read_tdo=False, tdi=0x1)
+
+        # --(TMS=0)--> Capture-DR --(TMS=0)--> Shift-DR
+        self.jtag_sequence(cycles=2, tms=0, read_tdo=False, tdi=0x3)
+
+        # Capture 64 bits of TDO with TDI=1, TMS=0
+        tdo = self.jtag_sequence(cycles=64, tms=0, read_tdo=True, tdi=0xff00ffffff00ffff)
+        assert tdo is not None
+        LOG.info("TDO = %016x", tdo)
+
+        device_ids: List[int] = []
+        tdo_bit_count = 64
+
+        while tdo & 0xffffffff != 0xffffffff:
+            if tdo_bit_count < 32:
+                # Get another 32 bits of TDO with TDI=1, TMS=0
+                more_tdo = self.jtag_sequence(cycles=32, tms=0, read_tdo=True, tdi=0xff00ffff)
+                assert more_tdo is not None
+                LOG.info("TDO = %016x", more_tdo)
+
+                tdo |= more_tdo << tdo_bit_count
+                tdo_bit_count += 32
+
+            # Catch device with no ID.
+            if (tdo & 1) == 0:
+                device_ids.append(0)
+                tdo >>= 1
+                tdo_bit_count -= 1
+            elif (tdo & 0xffffffff) == 0xff00ffff:
+                LOG.error("getting JTAG IDs failed")
+            elif (tdo & 0xff) == 0xff:
+                break
+            else:
+                devid = tdo & 0xffffffff
+                tdo >>= 32
+                tdo_bit_count -= 32
+
+                device_ids.append(devid)
+                LOG.info("device_id = %08x", devid)
+
+        return device_ids
+
+    def protocol_setup(self) -> None:
+        if self._protocol == DebugProbe.Protocol.JTAG:
+            irlens = self._get_ir_len()
+            self._link.configure_jtag(irlens)
+            devids = self._get_jtag_ids()
+
+            # Reset JTAG and move to Run-Test/Idle
+            self.swj_sequence(9, 0xff)
+            idcode = self._link.jtag_idcode()
+            LOG.info("JTAG IDCODE = 0x%08x", idcode)
+
     def swj_sequence(self, length: int, bits: int) -> None:
         TRACE.debug("trace: swj_sequence(length=%i, bits=%x)", length, bits)
 
