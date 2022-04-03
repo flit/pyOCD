@@ -96,12 +96,10 @@ class CMSISDAPProbe(DebugProbe):
     # Note that Protocol.DEFAULT gets mapped to PORT.SWD. We need a concrete port type because some
     # non-reference CMSIS-DAP implementations do not accept the default port type.
     _PROTOCOL_TO_PORT: Dict[DebugProbe.Protocol, DAPAccess.PORT] = {
-        DebugProbe.Protocol.DEFAULT: DAPAccess.PORT.SWD,
         DebugProbe.Protocol.SWD: DAPAccess.PORT.SWD,
         DebugProbe.Protocol.JTAG: DAPAccess.PORT.JTAG,
         }
     _PORT_TO_PROTOCOL: Dict[DAPAccess.PORT, DebugProbe.Protocol] = {
-        DAPAccess.PORT.DEFAULT: DebugProbe.Protocol.DEFAULT,
         DAPAccess.PORT.SWD: DebugProbe.Protocol.SWD,
         DAPAccess.PORT.JTAG: DebugProbe.Protocol.JTAG,
         }
@@ -326,13 +324,23 @@ class CMSISDAPProbe(DebugProbe):
     def connect(self, protocol: Optional[DebugProbe.Protocol] = None) -> None:
         TRACE.debug("trace: connect(%s)", protocol.name if (protocol is not None) else "None")
 
-        # Convert protocol to port enum.
-        #
+        # Handle default/unspecified protocol.
         # We must get a non-default port, since some CMSIS-DAP implementations do not accept the default
-        # port. Note that the conversion of the default port type is contained in the PORT_MAP dict so it
-        # is one location.
-        port = (self._PROTOCOL_TO_PORT.get(protocol)
-                if protocol else self._PROTOCOL_TO_PORT[DebugProbe.Protocol.DEFAULT])
+        # port type (notably Microchip EDBG).
+        if (protocol is None) or (protocol == DebugProbe.Protocol.DEFAULT):
+            if DebugProbe.Protocol.SWD in self._supported_protocols:
+                protocol = DebugProbe.Protocol.SWD
+            elif DebugProbe.Protocol.JTAG in self._supported_protocols:
+                protocol = DebugProbe.Protocol.JTAG
+            else:
+                raise exceptions.ProbeError("neither SWD or JTAG is supported by the debug probe")
+        # Otherwise verify the selected protocol is supported.
+        elif protocol not in self._supported_protocols:
+            raise exceptions.ProbeError(f"debug probe does not support {protocol.name}")
+        assert protocol is not DebugProbe.Protocol.DEFAULT
+
+        # Convert to the port type used by pyDAPAccess.
+        port = self._PROTOCOL_TO_PORT[protocol]
         assert port is not DAPAccess.PORT.DEFAULT
 
         try:
@@ -344,6 +352,8 @@ class CMSISDAPProbe(DebugProbe):
         actual_mode = self._link.get_swj_mode()
         assert actual_mode is not None
         self._protocol = self._PORT_TO_PROTOCOL[actual_mode]
+        if self._protocol != protocol:
+            LOG.warning("requested %s, but debug probe is using %s", protocol.name, self._protocol.name)
 
     def _get_ir_len(self) -> List[int]:
         # Enter Run-Test/Idle.
