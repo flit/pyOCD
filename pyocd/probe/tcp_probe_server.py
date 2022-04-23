@@ -198,7 +198,11 @@ class DebugProbeRequestHandler(StreamRequestHandler):
     """
 
     ## Current version of the remote probe protocol.
-    PROTOCOL_VERSION = 1
+    #
+    # Versions:
+    # - 1 = initial version
+    # - 2.0 = add minor protocol version and hello2; add attrs to memory interface requests
+    PROTOCOL_VERSION = (2, 0)
 
     class StatusCode:
         """@brief Constants for errors reported from the server."""
@@ -229,6 +233,12 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         if self._probe.session is None:
             self._probe.session = self._session
 
+        # Whether the hello handshake has been completed successfully.
+        self._did_complete_handshake = False
+
+        # Protocol version of the connected client.
+        self._client_protocol_version: Tuple[int, int] = (0, 0)
+
         # Dict to store handles for AP memory interfaces.
         self._next_ap_memif_handle: int = 0
         self._ap_memif_handles: Dict[int, "MemoryInterface"] = {}
@@ -236,7 +246,8 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         # Create the request handlers dict here so we can reference bound probe methods.
         self._REQUEST_HANDLERS: Dict[str, Tuple[Callable, int]] = {
                 # Command                Handler                            Arg count
-                'hello':                (self._request__hello,              1   ),
+                'hello':                (self._request__hello,              2   ), # 'hello', version:int
+                'hello2':               (self._request__hello2,             1   ), # 'hello2', version:Tuple[int, int] -> Tuple[int, int]
                 'readprop':             (self._request__read_property,      1   ),
                 'open':                 (self._probe.open,                  0   ), # 'open'
                 'close':                (self._probe.close,                 0   ), # 'close'
@@ -319,7 +330,7 @@ class DebugProbeRequestHandler(StreamRequestHandler):
 
                 # Read request line.
                 request = self.rfile.readline()
-                TRACE.debug("request: %s", request)
+                TRACE.debug("request: %s", request.decode('utf-8').strip())
                 if len(request) == 0:
                     LOG.debug("empty request, closing connection")
                     return
@@ -356,6 +367,14 @@ class DebugProbeRequestHandler(StreamRequestHandler):
                     continue
                 handler, arg_count = self._REQUEST_HANDLERS[request_type]
                 self._check_args(request_args, arg_count)
+
+                # Only allow handshake requests until the handshake is complete.
+                if (not self._did_complete_handshake) and (request_type not in ('hello', 'hello2')):
+                    self._send_error_response(
+                            message="handshake must be completed before other requests are accepted")
+                    continue
+
+                # Handle the request.
                 result = handler(*request_args)
 
                 # Send a success response.
@@ -397,11 +416,22 @@ class DebugProbeRequestHandler(StreamRequestHandler):
         if len(args) != count:
             raise exceptions.Error("malformed request; invalid number of arguments")
 
-    def _request__hello(self, version):
-        # 'hello', protocol-version:int
-        if version != self.PROTOCOL_VERSION:
-            raise exceptions.Error("client requested unsupported protocol version %i (expected %i)" %
-                    (version, self.PROTOCOL_VERSION))
+    def _request__hello(self, version: int):
+        # 'hello', version:int
+        # This command is present only in protocol version 1, and an attempt to use always results
+        # in an error.
+        raise exceptions.Error(f"client requested unsupported protocol version {version} "
+                                "(old hello request was used)")
+
+    def _request__hello2(self, version: Tuple[int, int]) -> Tuple[int, int]:
+        # 'hello2', version:Tuple[int, int] -> Tuple[int, int]
+        if version[0] != self.PROTOCOL_VERSION[0]:
+            raise exceptions.Error(f"client requested unsupported protocol version {version[0]}.{version[1]} "
+                                   f"(expected {self.PROTOCOL_VERSION}.x)")
+
+        self._did_complete_handshake = True
+        self._client_protocol_version = version
+        return self.PROTOCOL_VERSION
 
     def _request__read_property(self, name):
         # 'readprop', name:str

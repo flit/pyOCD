@@ -60,7 +60,8 @@ class TCPClientProbe(DebugProbe):
 
     DEFAULT_PORT = 5555
 
-    PROTOCOL_VERSION = 1
+    # See DebugProbeRequestHandler for protocol version change list.
+    PROTOCOL_VERSION = (2, 0)
 
     class StatusCode:
         """@brief Constants for errors reported from the server."""
@@ -109,6 +110,8 @@ class TCPClientProbe(DebugProbe):
         self._socket = ClientSocket(hostname, port)
         self._is_open = False
         self._request_id = 0
+        self._did_complete_handshake = False
+        self._server_protocol_version: Tuple[int, int] = (0, 0)
         self._lock_count = 0
         self._lock_count_lock = threading.RLock()
 
@@ -223,8 +226,10 @@ class TCPClientProbe(DebugProbe):
             self._is_open = True
             self._socket.set_timeout(0.1)
 
-        # Send hello message.
-        self._perform_request('hello', self.PROTOCOL_VERSION)
+        # Send hello message only the first time.
+        if not self._did_complete_handshake:
+            self._server_protocol_version = self._perform_request('hello2', self.PROTOCOL_VERSION)
+            self._did_complete_handshake = True
 
         self._perform_request('open')
 
@@ -233,6 +238,7 @@ class TCPClientProbe(DebugProbe):
             self._perform_request('close')
             self._socket.close()
             self._is_open = False
+            self._did_complete_handshake = False
 
     def lock(self):
         # The lock count is then used to only send the remote lock request once.
