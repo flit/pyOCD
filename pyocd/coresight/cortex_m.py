@@ -36,6 +36,7 @@ from .cortex_m_core_registers import (
 from ..debug.breakpoints.manager import BreakpointManager
 from ..debug.breakpoints.software import SoftwareBreakpointProvider
 from .ap import MEM_AP
+from .m_profile_registers import DHCSR
 
 if TYPE_CHECKING:
     from .coresight_target import CoreSightTarget
@@ -116,21 +117,6 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     DCRSR = 0xE000EDF4
     DCRSR_REGWnR = (1 << 16)
     DCRSR_REGSEL = 0x1F
-
-    # Debug Halting Control and Status Register
-    DHCSR = 0xE000EDF0
-    C_DEBUGEN = (1 << 0)
-    C_HALT = (1 << 1)
-    C_STEP = (1 << 2)
-    C_MASKINTS = (1 << 3)
-    C_SNAPSTALL = (1 << 5)
-    C_PMOV = (1 << 6)
-    S_REGRDY = (1 << 16)
-    S_HALT = (1 << 17)
-    S_SLEEP = (1 << 18)
-    S_LOCKUP = (1 << 19)
-    S_RETIRE_ST = (1 << 24)
-    S_RESET_ST = (1 << 25)
 
     # Debug Core Register Data Register
     DCRDR = 0xE000EDF8
@@ -337,7 +323,8 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         # Enable debug, preserving any current debug state.
         if not self.call_delegate('start_debug_core', core=self):
-            self.write32(self.DHCSR, (self.read32(self.DHCSR) & 0xffff) | self.DBGKEY | self.C_DEBUGEN)
+            DHCSR.write(self, (DHCSR.read(self) & 0xffff) | self.DBGKEY | DHCSR.C_DEBUGEN)
+            # self.write32(self.DHCSR, (self.read32(self.DHCSR) & 0xffff) | self.DBGKEY | self.C_DEBUGEN)
 
         # Examine this CPU.
         self._read_core_type()
@@ -363,7 +350,8 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             # Disable core debug.
             if resume:
                 self.resume()
-                self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
+                DHCSR.write(self, CortexM.DBGKEY | 0x0000)
+                # self.write32(CortexM.DHCSR, CortexM.DBGKEY | 0x0000)
 
         self.call_delegate('did_stop_debug_core', core=self)
 
@@ -512,7 +500,9 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         LOG.debug("halting core %d", self.core_number)
 
         self.session.notify(Target.Event.PRE_HALT, self, Target.HaltReason.USER)
-        self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
+        DHCSR.write(self, CortexM.DBGKEY | DHCSR.C_DEBUGEN | DHCSR.C_HALT)
+        self.DHCSR = DHCSR.DBGKEY__KEY | DHCSR.C_DEBUGEN | DHCSR.C_HALT
+        # self.write_memory(CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
         self.flush()
         self.session.notify(Target.Event.POST_HALT, self, Target.HaltReason.USER)
 

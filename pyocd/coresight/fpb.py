@@ -21,6 +21,7 @@ from typing import (List, Optional, TYPE_CHECKING)
 from ..core.target import Target
 from .component import CoreSightComponent
 from ..debug.breakpoints.provider import (Breakpoint, BreakpointProvider)
+from ..utility.register import (Constant, Bitfield, RegisterDefinition)
 
 if TYPE_CHECKING:
     from ..core.memory_interface import MemoryInterface
@@ -37,9 +38,16 @@ class HardwareBreakpoint(Breakpoint):
 class FPB(BreakpointProvider, CoreSightComponent):
     """@brief Flash Patch and Breakpoint unit"""
 
-    # FPB registers
-    #
-    # The addresses are offsets from the base address.
+    class _CTRL(RegisterDefinition, offset=0):
+        ENABLE      = Bitfield[0]
+        KEY         = Bitfield[1]
+        NUM_CODE    = Bitfield[14:12, 7:4]
+        NUM_LIT     = Bitfield[11:8]
+        REV         = Bitfield[31:28]
+
+    class _COMPn(RegisterDefinition, offset=8, count=8):
+        pass
+
     FP_CTRL = 0x00000000
     FP_CTRL_KEY = 1 << 1
     FP_CTRL_REV_MASK = 0xf0000000
@@ -71,7 +79,11 @@ class FPB(BreakpointProvider, CoreSightComponent):
         (Flash Patch and Breakpoint Unit), which will be enabled when the first breakpoint is set.
         setup FPB (breakpoint)
         """
+        assert self.address is not None
+        self.CTRL = FPB._CTRL(self.ap, base=self.address)
+        self.COMPn = FPB._COMPn(self.ap, base=self.address)
         fpcr = self.ap.read32(self.address + FPB.FP_CTRL)
+        # fpcr = self.CTRL
         self.fpb_rev = 1 + ((fpcr & FPB.FP_CTRL_REV_MASK) >> FPB.FP_CTRL_REV_SHIFT)
         if self.fpb_rev not in (1, 2):
             LOG.warning("Unknown FPB version %d", self.fpb_rev)
