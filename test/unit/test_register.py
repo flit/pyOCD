@@ -24,6 +24,7 @@ from pyocd.utility.register import (
     Bitfield,
     Constant,
     RegisterDefinition,
+    register_memif,
 )
 
 class DHCSR(RegisterDefinition, offset=0xDF0, width=32):
@@ -117,3 +118,23 @@ class TestRegisterDefinition:
         r.write(memif, base=0x2000)
         memif.write_memory.assert_called_with(0x2008, 0x5678, transfer_size=32)
 
+class TestRegisterProxy:
+    def test_a(self, memif):
+        class Foo:
+            DHCSR = DHCSR(None, base=0xe000e000) #(memif, base=0xe000e000)
+            def __init__(self) -> None:
+                rattr = self.__dict__.get('DHCSR', 'none')
+                print(f"{rattr=} {type(self.DHCSR)=}")
+        f = Foo()
+        # x = f.DHCSR
+        # memif.read_memory.assert_called_with(0xe000edf0, transfer_size=32)
+        # f.DHCSR = 0x10301
+        # memif.write_memory.assert_called_with(0xe000edf0, 0x10301, transfer_size=32)
+
+        with register_memif(memif):
+            x = f.DHCSR
+            print(f"{x=}")
+            memif.read_memory.assert_called_with(0xe000edf0, transfer_size=32)
+
+            f.DHCSR = 0x10301
+            memif.write_memory.assert_called_with(0xe000edf0, 0x10301, transfer_size=32)

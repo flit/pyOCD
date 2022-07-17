@@ -14,16 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import collections.abc
+import threading
+from contextlib import contextmanager
 from functools import total_ordering
 from types import MethodType
 from typing import (Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union, TYPE_CHECKING, overload)
 from typing_extensions import Self
 
+from ..core.memory_interface import MemoryInterface
 from .mask import (bitmask, bit_invert)
 
 if TYPE_CHECKING:
-    from ..core.memory_interface import MemoryInterface
+    pass
 
 class Constant(int):
     """@brief Used to define bitfield value constants in a register definition."""
@@ -402,7 +407,7 @@ class _RegisterDefinitionMeta(type):
                 bases: Tuple[type, ...],
                 objdict: Dict[str, Any],
                 **kwds: Any
-            ) -> "_RegisterDefinitionMeta":
+            ) -> _RegisterDefinitionMeta:
         # print(f"RegisterDefinitionMeta.__new__(mcs={mcs}, name={name}, bases={bases}, objdict={objdict}, kwds={kwds})")
 
         # Don't process the RegisterDefinition class that is used as the actual base of register definitions.
@@ -500,6 +505,34 @@ class _RegisterDefinitionMeta(type):
         return new_type
 
 
+# TODO: if obj in the __get__() and __set__() methods is a CoreSightComponent, then we could
+#   automatically pick up the memif to use.
+class _RegisterTargetProxy:
+    """@brief"""
+    __slots__ = ('_register', '_memif', '_base')
+
+    def __init__(self, register: Type[RegisterDefinition], memif: MemoryInterface, base: Optional[int] = None) -> None:
+        self._register = register
+        self._memif = memif
+        self._base = base
+
+    def __get__(self, obj: Optional[object], objtype: Optional[type] = None) -> Union[Self, "RegisterDefinition"]:
+        """@brief Descriptor get operation."""
+        print(f"proxy get called for {self._register.name}; {obj=}")
+        # When called on the class, return ourself.
+        if obj is None:
+            return self
+        else:
+            return self._register.read(self._memif, base=self._base)
+
+    def __set__(self, obj: object, value: Any) -> None:
+        """@brief Descriptor set operation."""
+        print(f"proxy get called for {self._register.name}; {obj=} {value=}")
+        if obj is None:
+            raise AttributeError("cannot set bitfields of a register class")
+        self._register.write(self._memif, value, base=self._base)
+
+
 class RegisterDefinition(metaclass=_RegisterDefinitionMeta):
     """@brief Superclass for register definitions.
 
@@ -573,19 +606,36 @@ class RegisterDefinition(metaclass=_RegisterDefinitionMeta):
     >>> CTRL.read(target, address=0x40013000)
     ```
     """
-    __slots__ = ('_value',)
+    __slots__ = ('_value', '_base')
 
-    @overload
-    def __init__(self, value: "MemoryInterface", base: Optional[int] = None) -> None:
-        ...
+    # @overload
+    # def __new__(cls, value: "MemoryInterface", base: Optional[int] = None) -> _RegisterTargetProxy:
+    #     ...
 
-    @overload
-    def __init__(self, value: int) -> None:
-        ...
+    # @overload
+    # def __new__(cls, value: int) -> "_RegisterTargetProxy":
+    #     ...
 
-    def __init__(self, value, base=None):
-        """@brief Constructs a register instance with a value."""
+    # def __new__(cls, value, base=None):
+    #     """@brief Constructs a register instance with a value."""
+    #     if isinstance(value, MemoryInterface):
+    #         print(f"creating target proxy for {cls.name}")
+    #         proxy = _RegisterTargetProxy.__new__(_RegisterTargetProxy)
+    #         proxy.__init__(cls, value, base)
+    #         print(f"{proxy=}")
+    #         return proxy
+    #     else:
+    #         # Construct value instance of this register. __init__() will automatically be called
+    #         # after returning an instance of cls.
+    #         return super().__new__(cls)
+
+    def __init__(self, value: Optional[int], base: Optional[int] = None):
+        """@brief Constructs a register instance with a value.
+
+        @note Current the _base_ argument is ignored.
+        """
         self._value = value
+        self._base = base
 
     @classmethod
     @property
@@ -649,6 +699,7 @@ class RegisterDefinition(metaclass=_RegisterDefinitionMeta):
         """@brief Convert a register instance to int."""
         return self._value
 
+    # TODO: handle _base instance attribute
     @classmethod
     def _get_target_address(
                 cls,
@@ -689,7 +740,7 @@ class RegisterDefinition(metaclass=_RegisterDefinitionMeta):
     @classmethod
     def read(
                 cls,
-                memif: "MemoryInterface",
+                memif: MemoryInterface,
                 address: Optional[int] = None,
                 base: Optional[int] = None,
                 index: Optional[int] = None,
@@ -716,7 +767,7 @@ class RegisterDefinition(metaclass=_RegisterDefinitionMeta):
 
     def _class_write(
                 cls, # type:ignore # pyright doesn't like this since the method doesn't have @classmethod
-                memif: "MemoryInterface",
+                memif: MemoryInterface,
                 value: int,
                 address: Optional[int] = None,
                 base: Optional[int] = None,
@@ -743,7 +794,8 @@ class RegisterDefinition(metaclass=_RegisterDefinitionMeta):
 
     def _instance_write(
                 self,
-                memif: "MemoryInterface",
+                memif: MemoryInterface,
+                value: Optional[int] = None,
                 address: Optional[int] = None,
                 base: Optional[int] = None,
                 index: Optional[int] = None,
@@ -752,6 +804,9 @@ class RegisterDefinition(metaclass=_RegisterDefinitionMeta):
 
         @param self
         @param memif `MemoryInterface` used to write the register.
+        @param value Optional new int value for the register. If provided, the register instance's value is
+            first updated, then the register is written to the new value through _memif_. If not provided,
+            the register is written to it's current value.
         @param address Address (int) of the register. If specified, this takes precedence over other
             parameters and over an address passed into the class definition.
         @param base Base address (int) of the register's peripheral/component. If specified, this is added
@@ -763,29 +818,45 @@ class RegisterDefinition(metaclass=_RegisterDefinitionMeta):
             the index is negative or greater than the specified number of elements (also passed into the
             class definition) then an `IndexError` is raised.
         """
-        addr = self._get_target_address(address, base, index)
+        if value is not None:
+            self.value = value
+        addr = self._get_target_address(address, (base or self._base), index)
         memif.write_memory(addr, self.value, transfer_size=self.width)
 
     # Use different implementations of write() for the class and instance.
     write = _ClassAndInstanceMethod(_class_write, _instance_write)
 
-    def __get__(self, obj: Optional[object], objtype: Optional[type] = None) -> Union[Self, int]:
+    def __get__(self, obj: Optional[object], objtype: Optional[type] = None) -> Union[Self, RegisterDefinition]:
         """@brief Descriptor get operation."""
+        print(f"reg get called for {self.name}; {obj=}; {_register_thread_locals.memif_stack=}")
         # When called on the class, return ourself.
         if obj is None:
             return self
         else:
-            return self.get(obj.value) # type:ignore
+            return self.read(_register_thread_locals.memif_stack[-1], base=self._base)
 
     def __set__(self, obj: object, value: Any) -> None:
         """@brief Descriptor set operation."""
+        print(f"reg get called for {self.name}; {obj=} {value=}; {_register_thread_locals.memif_stack=}")
         if obj is None:
             raise AttributeError("cannot set bitfields of a register class")
-        obj._value = self.set(int(value), obj._value) # type:ignore
+        self.write(_register_thread_locals.memif_stack[-1], value, base=self._base)
 
     def __repr__(self) -> str:
+        val = -1 if self._value is None else self._value
         at_addr = f"@{self.address:0{self.width // 4}x}" if (self.address is not None) else ""
-        return f"<{self.name} {at_addr} ={self.value:0{self.width // 4}x}>"
+        return f"<{self.name} {at_addr} ={val:0{self.width // 4}x}>"
+
+_register_thread_locals = threading.local()
+_register_thread_locals.memif_stack = []
+
+@contextmanager
+def register_memif(memif: MemoryInterface):
+    try:
+        _register_thread_locals.memif_stack.append(memif)
+        yield
+    finally:
+        _register_thread_locals.memif_stack.pop()
 
 # class Foo:
 #     def __init__(self, target) -> None:
@@ -799,4 +870,32 @@ class RegisterDefinition(metaclass=_RegisterDefinitionMeta):
 #         self.DHCSR.C_HALT = 1
 #         # a = self.DHCSR.__get__(self, Foo) ----> RegisterTargetProxy.__get__()
 #         # b = a.C_HALT.__get__(a, DHCSR)
+
+#
+# class CSW(RegisterDefinition):
+#     SIZE        = Bitfield[2:0](
+#         SIZE8   = 0,
+#         SIZE16  = 1,
+#         SIZE32  = 2,
+#         SIZE64  = 3,
+#         SIZE128 = 4,
+#         SIZE256 = 5,
+#     )
+#     ADDRINC     = Bitfield[5:4](
+#         NADDRINC=0,
+#         SADDRINC=1
+#         PADDRINC=2,
+#     )
+#     DEVICEEN    = Bitfield[6]
+#     TINPROG     = Bitfield[7]
+#     ERRNPASS    = Bitfield[16]
+#     ERRSTOP     = Bitfield[17]
+#     SDEVICEEN   = Bitfield[23]
+#     HPROT       = Bitfield[27:24]
+#     MSTRTYPE    = Bitfield[29](
+#         MSTRCORE=0,
+#         MSTRDBG=1,
+#     )
+#     DBGSWEN     = Bitfield[31]
+
 
