@@ -1183,7 +1183,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         self._accelerated_memory_interface.write_memory(addr, data, transfer_size,
-                csw=self._csw)
+                csw=self._csw) # type:ignore # ignore type error about no csw param
 
     @locked
     def _accelerated_read_memory(self, addr: int, transfer_size: int=32, now: bool=True) \
@@ -1194,7 +1194,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         return self._accelerated_memory_interface.read_memory(addr, transfer_size, now,
-                csw=self._csw)
+                csw=self._csw) # type:ignore # ignore type error about no csw param
 
     @locked
     def _accelerated_write_memory_block32(self, addr: int, data: Sequence[int]) -> None:
@@ -1204,7 +1204,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         self._accelerated_memory_interface.write_memory_block32(addr, data,
-                csw=self._csw)
+                csw=self._csw) # type:ignore # ignore type error about no csw param
 
     @locked
     def _accelerated_read_memory_block32(self, addr: int, size: int) -> Sequence[int]:
@@ -1214,7 +1214,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         return self._accelerated_memory_interface.read_memory_block32(addr, size,
-                csw=self._csw)
+                csw=self._csw) # type:ignore # ignore type error about no csw param
 
     @locked
     def _accelerated_write_memory_block8(self, addr: int, data: Sequence[int]) -> None:
@@ -1224,7 +1224,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         self._accelerated_memory_interface.write_memory_block8(addr, data,
-                csw=self._csw)
+                csw=self._csw) # type:ignore # ignore type error about no csw param
 
     @locked
     def _accelerated_read_memory_block8(self, addr: int, size: int) -> Sequence[int]:
@@ -1234,7 +1234,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         """
         assert self._accelerated_memory_interface is not None
         return self._accelerated_memory_interface.read_memory_block8(addr, size,
-                csw=self._csw)
+                csw=self._csw) # type:ignore # ignore type error about no csw param
 
     def _handle_error(self, error: Exception, num: int) -> None:
         self.dp._handle_error(error, num)
