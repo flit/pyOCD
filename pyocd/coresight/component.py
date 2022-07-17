@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,44 +15,59 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+from typing import (TYPE_CHECKING, Optional, cast)
+
 from ..utility.graph import GraphNode
+
+if TYPE_CHECKING:
+    from ..core.memory_interface import MemoryInterface
+    from .rom_table import CoreSightComponentID
 
 class CoreSightComponent(GraphNode):
     """@brief CoreSight component base class."""
 
     @classmethod
-    def factory(cls, ap, cmpid, address):
+    def factory(cls, ap: MemoryInterface, cmpid: CoreSightComponentID, address: Optional[int]):
         """@brief Common CoreSightComponent factory."""
         cmp = cls(ap, cmpid, address)
-        if hasattr(ap, 'core') and ap.core:
-            ap.core.add_child(cmp)
+        if hasattr(ap, 'core') and ap.core: # type:ignore
+            ap.core.add_child(cmp) # type:ignore
         return cmp
 
-    def __init__(self, ap, cmpid=None, addr=None):
+    def __init__(
+            self,
+            ap: MemoryInterface,
+            cmpid: Optional[CoreSightComponentID] = None,
+            addr: Optional[int]=None
+            ) -> None:
         """@brief Constructor."""
-        super(CoreSightComponent, self).__init__()
+        super().__init__()
         self._ap = ap
         self._cmpid = cmpid
-        self._address = addr if (addr is not None) else (cmpid.address if cmpid else None)
+        address = addr if (addr is not None) else (cast(int, cmpid.address) if cmpid else None)
+        assert address is not None
+        self._address = address
 
     @property
-    def ap(self):
+    def ap(self) -> MemoryInterface:
         return self._ap
 
     @property
-    def cmpid(self):
+    def cmpid(self) -> Optional[CoreSightComponentID]:
         return self._cmpid
 
     @cmpid.setter
-    def cmpid(self, newCmpid):
+    def cmpid(self, newCmpid: CoreSightComponentID) -> None:
         self._cmpid = newCmpid
 
     @property
-    def address(self):
+    def address(self) -> int:
         return self._address
 
     @address.setter
-    def address(self, newAddr):
+    def address(self, newAddr: int) -> None:
         self._address = newAddr
 
 class CoreSightCoreComponent(CoreSightComponent):
