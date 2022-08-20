@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2015-2019 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +20,7 @@ import collections.abc
 import copy
 from functools import total_ordering
 from typing import (Any, Dict, Iterable, Iterator, List, Optional, TYPE_CHECKING, Sequence, Tuple, Type, Union)
+from typing_extensions import Self
 
 from ..utility.strings import uniquify_name
 
@@ -36,7 +37,7 @@ class MemoryType(Enum):
     DEVICE = 4
 
 def check_range(
-            start: Union[int, "MemoryRangeBase"],
+            start: Union[int, "MemoryRangeBase", None] = None,
             end: Optional[int] = None,
             length: Optional[int] = None,
             range: Optional["MemoryRangeBase"] = None
@@ -90,7 +91,7 @@ class MemoryRangeBase:
 
     def contains_range(
                 self,
-                start: Union[int, "MemoryRangeBase"],
+                start: Union[int, "MemoryRangeBase", None] = None,
                 end: Optional[int] = None,
                 length: Optional[int] = None,
                 range: Optional["MemoryRangeBase"] = None
@@ -101,7 +102,7 @@ class MemoryRangeBase:
 
     def contained_by_range(
                 self,
-                start: Union[int, "MemoryRangeBase"],
+                start: Union[int, "MemoryRangeBase", None] = None,
                 end: Optional[int] = None,
                 length: Optional[int] = None,
                 range: Optional["MemoryRangeBase"] = None
@@ -112,7 +113,7 @@ class MemoryRangeBase:
 
     def intersects_range(
                 self,
-                start: Union[int, "MemoryRangeBase"],
+                start: Union[int, "MemoryRangeBase", None] = None,
                 end: Optional[int] = None,
                 length: Optional[int] = None,
                 range: Optional["MemoryRangeBase"] = None
@@ -298,7 +299,7 @@ class MemoryRegion(MemoryRangeBase):
         """
         return dict(start=self.start, length=self.length, **self._attributes)
 
-    def clone_with_changes(self, **modified_attrs: Any) -> Any: # Have to return Any because Self isn't available yet.
+    def clone_with_changes(self, **modified_attrs: Any) -> Self:
         """@brief Create a duplicate this region with some of its attributes modified."""
         new_attrs = self._get_attributes_for_clone()
         new_attrs.update(modified_attrs)
