@@ -459,7 +459,9 @@ class CMSISDAPProbe(DebugProbe):
             devids = self._get_jtag_ids()
 
             # Reset JTAG and move to Run-Test/Idle
-            self.swj_sequence(9, 0xff)
+            self.jtag_sequence(6, 1, True, 0x3f)
+            self.jtag_sequence(1, 0, True, 0x1)
+            # self.swj_sequence(9, 0xff)
             idcode = self._link.jtag_idcode()
             LOG.info("JTAG IDCODE = 0x%08x", idcode)
 
