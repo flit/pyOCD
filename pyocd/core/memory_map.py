@@ -123,6 +123,39 @@ class MemoryRangeBase:
         return (start <= self.start and end >= self.start) or (start <= self.end and end >= self.end) \
             or (start >= self.start and end <= self.end)
 
+    def iter_split_by_address(self, addresses: Iterable[int]) -> Iterator["MemoryRange"]:
+        """@brief Yield ranges by splitting the object at the given addresses.
+
+        The values in _addresses_ are points at which _self_'s bounds are split. Each value in _addresses_
+        which is contained by _self_ becomes the start address of a yielded MemoryRange object, as well as
+        the end + 1 of the previous yielded range.
+
+        If a value in _addresses_ is not contained by _self_, it is ignored. If _addresses_ is empty or
+        contains only out of bounds values, a MemoryRange with the same bounds as _self_ is yielded, unless
+        _self_ has zero length.
+
+        @param self
+        @param addresses Iterable of int addresses by which _self_ is split. Can be in any order, can be,
+            empty and can contain values outside the bounds of _self_.
+        """
+        prev = self.start
+        for a in sorted(a for a in addresses if self.contains_address(a)):
+            if a > prev:
+                yield MemoryRange(start=prev, end=(a - 1))
+            prev = a
+        if prev <= self.end:
+            yield MemoryRange(start=prev, end=self.end)
+
+    def iter_split_by_range(self, other: "MemoryRangeBase") -> Iterator["MemoryRange"]:
+        """@brief Yield a list of ranges before, containing, and after the provided range.
+
+        Up to three MemoryRange objects are yielded. No yielded range will have bounds outside those of
+        self's.
+        - If _self_ and _other_ do not intersect, no ranges are yielded.
+        - If _other_ starts after _self_, a range
+        """
+        yield from self.iter_split_by_address([other.start, other.end + 1])
+
     def __hash__(self) -> int:
         return hash("%08x%08x%08x" % (self.start, self.end, self.length))
 
