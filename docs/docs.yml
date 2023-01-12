@@ -44,3 +44,4 @@
     - architecture
     - developer/board_ids
     - remote_probe_protocol
+    - developer/cmsis_dap_internals
