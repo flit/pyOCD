@@ -109,9 +109,11 @@ class PyUSB(Interface):
                 LOG.debug("Detaching Kernel Driver of Interface %d from USB device (VID=%04x PID=%04x).", interface_number, dev.idVendor, dev.idProduct)
                 dev.detach_kernel_driver(interface_number)
                 self.kernel_driver_was_attached = True
-        except (NotImplementedError, usb.core.USBError) as e:
+        except usb.core.USBError as e:
             # Some implementations don't don't have kernel attach/detach
             LOG.warning("USB Kernel Driver Detach Failed ([%s] %s). Attached driver may interfere with pyOCD operations.", e.errno, e.strerror)
+        except NotImplementedError:
+            pass
 
         # Explicitly claim the interface
         try:
@@ -130,6 +132,7 @@ class PyUSB(Interface):
         self.start_rx()
 
     def start_rx(self):
+        assert self.ep_in
         # Flush the RX buffers by reading until timeout exception
         try:
             while True:
@@ -144,12 +147,22 @@ class PyUSB(Interface):
         self.thread.start()
 
     def rx_task(self):
+        assert self.ep_in
         try:
             while not self.closed:
                 self.read_sem.acquire()
                 if not self.closed:
-                    read_data = self.ep_in.read(self.ep_in.wMaxPacketSize,
-                            timeout=self.DEFAULT_USB_TIMEOUT_MS)
+                    timeout_count = 0
+                    read_data = None
+                    while read_data is None:
+                        try:
+                            read_data = self.ep_in.read(self.ep_in.wMaxPacketSize,
+                                    timeout=self.DEFAULT_USB_TIMEOUT_MS)
+                        except usb.core.USBTimeoutError:
+                            # Ignore timeout errors until we hit the maximum number.
+                            timeout_count += 1
+                            if timeout_count > self.MAXIMUM_TIMEOUT_COUNT:
+                                raise
 
                     if TRACE.isEnabledFor(logging.DEBUG):
                         # Strip off trailing zero bytes to reduce clutter.
@@ -200,6 +213,7 @@ class PyUSB(Interface):
         self.read_sem.release()
 
         if not self.ep_out:
+            assert self.dev
             bmRequestType = 0x21              #Host to device request of type Class of Recipient Interface
             bmRequest = 0x09              #Set_REPORT (HID class-specific request for transferring data over EP0)
             wValue = 0x200             #Issuing an OUT report

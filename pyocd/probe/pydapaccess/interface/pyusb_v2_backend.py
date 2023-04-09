@@ -67,9 +67,9 @@ class PyUSBv2(Interface):
         self.kernel_driver_was_attached = False
         self.closed = True
         self.thread = None
-        self.rx_stop_event = None
+        self.rx_stop_event = threading.Event()
         self.swo_thread = None
-        self.swo_stop_event = None
+        self.swo_stop_event = threading.Event()
         self.rcv_data = []
         self.swo_data = []
         self.read_sem = threading.Semaphore(0)
@@ -131,6 +131,7 @@ class PyUSBv2(Interface):
         self.start_rx()
 
     def start_rx(self):
+        assert self.ep_in
         # Flush the RX buffers by reading until timeout exception
         try:
             while True:
@@ -140,14 +141,13 @@ class PyUSBv2(Interface):
             pass
 
         # Start RX thread
-        self.rx_stop_event = threading.Event()
         thread_name = "CMSIS-DAP receive (%s)" % self.serial_number
         self.thread = threading.Thread(target=self.rx_task, name=thread_name)
         self.thread.daemon = True
         self.thread.start()
 
     def start_swo(self):
-        self.swo_stop_event = threading.Event()
+        self.swo_stop_event.clear()
         thread_name = "SWO receive (%s)" % self.serial_number
         self.swo_thread = threading.Thread(target=self.swo_rx_task, name=thread_name)
         self.swo_thread.daemon = True
@@ -155,18 +155,29 @@ class PyUSBv2(Interface):
         self.is_swo_running = True
 
     def stop_swo(self):
+        assert self.swo_thread
         self.swo_stop_event.set()
         self.swo_thread.join()
         self.swo_thread = None
-        self.swo_stop_event = None
+        # self.swo_stop_event = None
         self.is_swo_running = False
 
     def rx_task(self):
+        assert self.ep_in
         try:
             while not self.rx_stop_event.is_set():
                 self.read_sem.acquire()
                 if not self.rx_stop_event.is_set():
-                    read_data = self.ep_in.read(self.packet_size, timeout=self.DEFAULT_USB_TIMEOUT_MS)
+                    timeout_count = 0
+                    read_data = None
+                    while read_data is None:
+                        try:
+                            read_data = self.ep_in.read(self.packet_size, timeout=self.DEFAULT_USB_TIMEOUT_MS)
+                        except usb.core.USBTimeoutError:
+                            # Ignore timeout errors until we hit the maximum number.
+                            timeout_count += 1
+                            if timeout_count > self.MAXIMUM_TIMEOUT_COUNT:
+                                raise
 
                     if TRACE.isEnabledFor(logging.DEBUG):
                         TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in read_data]))
@@ -177,11 +188,19 @@ class PyUSBv2(Interface):
             self.rcv_data.append(None)
 
     def swo_rx_task(self):
+        assert self.ep_swo
         try:
+            timeout_count = 0
             while not self.swo_stop_event.is_set():
                 try:
                     self.swo_data.append(self.ep_swo.read(self.ep_swo.wMaxPacketSize,
                             timeout=self.DEFAULT_USB_TIMEOUT_MS))
+                    timeout_count = 0
+                except usb.core.USBTimeoutError:
+                    # Ignore timeout errors until we hit the maximum number.
+                    timeout_count += 1
+                    if timeout_count > self.MAXIMUM_TIMEOUT_COUNT:
+                        raise
                 except usb.core.USBError:
                     pass
         finally:

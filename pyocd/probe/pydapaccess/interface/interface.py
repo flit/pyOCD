@@ -25,6 +25,9 @@ class Interface:
     DEFAULT_USB_TIMEOUT_S = 10
     DEFAULT_USB_TIMEOUT_MS = DEFAULT_USB_TIMEOUT_S * 1000
 
+    # Maximum number of USB timeouts allowed.
+    MAXIMUM_TIMEOUT_COUNT = 4
+
     def __init__(self):
         self.vid = 0
         self.pid = 0
