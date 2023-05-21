@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from time import sleep
-from typing import (Callable, TYPE_CHECKING, cast)
+from typing import (Callable, TYPE_CHECKING, Optional, cast)
 
 from ...coresight import ap
 from ...coresight.cortex_m import CortexM
@@ -387,27 +387,37 @@ class Kinetis(CoreSightTarget):
 class KinetisCortexM(CortexM):
     """@brief Kinetis subclass of the standard Cortex-M class."""
 
-    # def set_reset_catch(self, reset_type=None):
-    #     LOG.debug("KinetisCortexM set reset catch, core %d, type %s", self.core_number, reset_type.name)
+    def set_reset_catch(self, reset_type: Optional[Target.ResetType] = None):
+        LOG.debug("KinetisCortexM set reset catch, core %d, type %s", self.core_number, reset_type.name if reset_type else "(default)")
 
-    #     self._reset_catch_delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
+        self._reset_catch_delegate_result = self.call_delegate('set_reset_catch', core=self, reset_type=reset_type)
 
-    #     # Default behaviour if the delegate didn't handle it.
-    #     if not self._reset_catch_delegate_result:
-    #         # Use the MDM-AP to force the core to halt across the reset.
-    #         with Timeout(HALT_TIMEOUT) as to:
-    #             while to.check():
-    #                 cast(Kinetis, self.parent).mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_DEBUG_REQUEST)
-    #                 if ((cast(Kinetis, self.parent).mdm_ap.read_reg(MDM_CTRL) & MDM_CTRL_DEBUG_REQUEST) == MDM_CTRL_DEBUG_REQUEST):
-    #                     break
-    #             else:
-    #                 raise exceptions.TimeoutError("Timed out attempting to set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
+        # Default behaviour if the delegate didn't handle it.
+        if not self._reset_catch_delegate_result:
+            # Use the MDM-AP to force the core to halt across the reset.
+            LOG.debug("using MDM-AP to force core halt on reset")
+            with Timeout(HALT_TIMEOUT) as to:
+                while to.check(): #MDM_CTRL_DEBUG_REQUEST
+                    cast(Kinetis, self.parent).mdm_ap.write_reg(MDM_CTRL, MDM_CTRL_CORE_HOLD_RESET)
+                    if ((cast(Kinetis, self.parent).mdm_ap.read_reg(MDM_CTRL) & MDM_CTRL_CORE_HOLD_RESET) == MDM_CTRL_CORE_HOLD_RESET):
+                        LOG.debug("successfully set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
+                        break
+                else:
+                    raise exceptions.TimeoutError("Timed out attempting to set DEBUG_REQUEST and CORE_HOLD_RESET in MDM-AP")
 
-    # def clear_reset_catch(self, reset_type=None):
-    #     LOG.debug("KinetisCortexM clear reset catch, core %d, type %s", self.core_number, reset_type.name)
+    def _inner_reset(self, reset_type: Optional[Target.ResetType], is_halting: bool) -> None:
+        super()._inner_reset(reset_type=reset_type, is_halting=is_halting)
+
+        LOG.debug("KinetisCortexM _inner_reset, clearing mdm halt")
+        if is_halting:
+            cast(Kinetis, self.parent)._disable_mdm_halt()
+
+    # def clear_reset_catch(self, reset_type: Optional[Target.ResetType] = None):
+    #     LOG.debug("KinetisCortexM clear reset catch, core %d, type %s", self.core_number,  reset_type.name if reset_type else "(default)")
 
     #     self.call_delegate('clear_reset_catch', core=self, reset_type=reset_type)
 
     #     if not self._reset_catch_delegate_result:
+    #         self.halt()
     #         cast(Kinetis, self.parent)._disable_mdm_halt()
 
