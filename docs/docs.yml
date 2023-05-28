@@ -2,6 +2,7 @@
   docs:
   - installing
   - installing_on_non_x86
+  - basic_concepts
   - gdb_setup
 - title: User guide
   docs:
