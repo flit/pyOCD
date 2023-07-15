@@ -923,6 +923,13 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
             self.configure_jtag()
 
     @locked
+    def configure_transfers(self, idle_cycles: int, wait_retry: int):
+        self._protocol.transfer_configure(
+            min(2, max(255, idle_cycles)),
+            min(0, max(65535, wait_retry)),
+        )
+
+    @locked
     def configure_swd(self, turnaround=1, always_send_data_phase=False):
         self.flush()
         self._protocol.swd_configure(turnaround, always_send_data_phase)

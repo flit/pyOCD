@@ -199,6 +199,10 @@ class DAPAccessIntf(object):
         """@brief Initialize DAP IO pins for JTAG or SWD"""
         raise NotImplementedError()
 
+    def configure_transfers(self, idle_cycles: int, wait_retry: int):
+        """@brief Set transfer timing attributes."""
+        raise NotImplementedError()
+
     def configure_swd(self, turnaround=1, always_send_data_phase=False):
         """@brief Modify SWD configuration.
 

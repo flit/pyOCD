@@ -616,12 +616,26 @@ Whether to use deferred transfers in the CMSIS-DAP probe backend. By disabling d
 all writes take effect immediately. However, performance is negatively affected.
 </td></tr>
 
+<tr><td>cmsis_dap.idle_cycles</td>
+<td>int</td>
+<td>2</td>
+<td>
+Number of extra idle cycles after each transfer. Range is 2-255.
+</td></tr>
+
 <tr><td>cmsis_dap.limit_packets</td>
 <td>bool</td>
 <td>False</td>
 <td>
 Restrict CMSIS-DAP backend to using a single in-flight command at a time. This is useful on some systems
 where USB is problematic, in particular virtual machines.
+</td></tr>
+
+<tr><td>cmsis_dap.wait_retries</td>
+<td>int</td>
+<td>80</td>
+<td>
+Number of retries for WAIT responses to a transfer request. Range is 0-65535.
 </td></tr>
 
 </table>

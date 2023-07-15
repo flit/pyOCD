@@ -324,6 +324,8 @@ class CMSISDAPProbe(DebugProbe):
     #          Target control functions
     # ------------------------------------------- #
     def connect(self, protocol: Optional[DebugProbe.Protocol] = None) -> None:
+        assert self._session
+
         TRACE.debug("trace: connect(%s)", protocol.name if (protocol is not None) else "None")
 
         # Convert protocol to port enum.
@@ -337,6 +339,10 @@ class CMSISDAPProbe(DebugProbe):
 
         try:
             self._link.connect(port)
+            self._link.configure_transfers(
+                idle_cycles=self._session.options.get('cmsis_dap.idle_cycles'),
+                wait_retries=self._session.options.get('cmsis_dap.wait_retries'),
+            )
         except DAPAccess.Error as exc:
             raise self._convert_exception(exc) from exc
 
@@ -658,8 +664,10 @@ class CMSISDAPProbe(DebugProbe):
                 raise self._convert_exception(exc) from exc
 
         if now:
+            # Ignore the type error because `result` could be a callable instead of iterable,
+            # since it never is when `now` is true.
             TRACE.debug("trace: read_ap_multi(addr=%#010x, count=%i) -> [%s]", addr, count,
-                    ", ".join(["%#010x" % v for v in result]))
+                    ", ".join(["%#010x" % v for v in result])) # type: ignore
             return result
         else:
             return read_ap_repeat_callback
@@ -741,6 +749,10 @@ class CMSISDAPProbePlugin(Plugin):
         return [
             OptionInfo('cmsis_dap.deferred_transfers', bool, True,
                 "Whether the CMSIS-DAP probe backend will use deferred transfers for improved performance."),
+            OptionInfo('cmsis_dap.idle_cycles', int, 2,
+                "Number of extra idle cycles after each transfer. Range is 2-255."),
             OptionInfo('cmsis_dap.limit_packets', bool, False,
                 "Restrict CMSIS-DAP backend to using a single in-flight command at a time."),
+            OptionInfo('cmsis_dap.wait_retries', int, 80,
+                "Number of retries for WAIT responses to a transfer request. Range is 0-65535."),
             ]
