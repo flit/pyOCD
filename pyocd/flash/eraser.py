@@ -90,19 +90,29 @@ class FlashEraser(object):
     def _chip_erase(self):
         if self._log_chip_erase:
             LOG.info("Erasing chip...")
-        # Erase all flash regions. This may be overkill if either each region's algo erases
-        # all regions on the chip. But there's no current way to know whether this will happen,
-        # so prefer to be certain.
-        for region in self._session.target.memory_map.iter_matching_regions(type=MemoryType.FLASH):
+        # Erase all flash regions marked as default. This may be overkill if there are multiple regions
+        # whose algo erases all regions on the chip. But there's no current way to know whether this will
+        # happen, so prefer to be certain.
+        for region in self._session.target.memory_map.iter_matching_regions(type=MemoryType.FLASH,
+                                                                            is_default=True):
             if region.flash is not None:
                 if region.flash.is_erase_all_supported:
+                    if self._log_chip_erase:
+                        LOG.info("Erasing region %s [%#010x..%#010x] using chip erase",
+                                 region.name, region.start, region.end)
                     region.flash.init(region.flash.Operation.ERASE)
                     region.flash.erase_all()
                     region.flash.cleanup()
                 else:
+                    if self._log_chip_erase:
+                        LOG.info("Erasing region %s [%#010x..%#010x] using sector erase",
+                                 region.name, region.start, region.end)
                     self._sector_erase([(region.start, region.end)])
+            else:
+                LOG.debug("Not erasing region %s [%#010x..%#010x] because it does not have a flash algorithm",
+                          region.name, region.start, region.end)
         if self._log_chip_erase:
-                LOG.info("Chip erase complete")
+            LOG.info("Chip erase complete")
 
     def _sector_erase(self, addresses):
         flash = None
