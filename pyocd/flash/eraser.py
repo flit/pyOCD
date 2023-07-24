@@ -90,6 +90,7 @@ class FlashEraser(object):
     def _chip_erase(self):
         if self._log_chip_erase:
             LOG.info("Erasing chip...")
+        did_erase = False
         # Erase all flash regions marked as default. This may be overkill if there are multiple regions
         # whose algo erases all regions on the chip. But there's no current way to know whether this will
         # happen, so prefer to be certain.
@@ -108,11 +109,15 @@ class FlashEraser(object):
                         LOG.info("Erasing region %s [%#010x..%#010x] using sector erase",
                                  region.name, region.start, region.end)
                     self._sector_erase([(region.start, region.end)])
+                did_erase = True
             else:
                 LOG.debug("Not erasing region %s [%#010x..%#010x] because it does not have a flash algorithm",
                           region.name, region.start, region.end)
         if self._log_chip_erase:
-            LOG.info("Chip erase complete")
+            if did_erase:
+                LOG.info("Chip erase complete")
+            else:
+                LOG.info("No flash regions were erased")
 
     def _sector_erase(self, addresses):
         flash = None
