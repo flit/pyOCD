@@ -155,7 +155,8 @@ class MemoryMapValue(ValueBase):
             self.context.write("No core is selected")
             return
 
-        pt = prettytable.PrettyTable(["Region", "Type", "Start", "End", "Size", "Access", "Sector", "Page"])
+        pt = prettytable.PrettyTable(["Region", "Type", "Start", "End", "Size", "Access", "Sector", "Page",
+                                      "Default"])
         pt.align = 'l'
         pt.border = False
 
@@ -170,6 +171,7 @@ class MemoryMapValue(ValueBase):
                     region.access,
                     ("0x%08x" % region.sector_size) if region.is_flash else '-',
                     ("0x%08x" % region.page_size) if region.is_flash else '-',
+                    ("n", "y")[region.is_default],
                     ])
                 if region.has_subregions:
                     add_rows(indent + 2, pt, region.submap)
