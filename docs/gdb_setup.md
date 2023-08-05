@@ -29,8 +29,10 @@ $ arm-none-eabi-gdb application.elf
 <gdb> monitor reset
 ```
 
-The `pyocd gdbserver` subcommand is also usable as a drop in place replacement for OpenOCD in
+The `pyocd gdbserver` subcommand is also usable as a (mostly) drop in place replacement for OpenOCD in
 existing setups. The primary difference is the set of gdb monitor commands.
+
+The [gdbserver documentation]({% link _docs/gdbserver.md %}) has more information on the features of the gdbserver.
 
 
 Recommended GDB and IDE setup
@@ -52,7 +54,14 @@ The GDB server also works well with [Eclipse Embedded CDT](https://projects.ecli
 previously known as [GNU MCU/ARM Eclipse](https://gnu-mcu-eclipse.github.io/). It fully supports pyOCD with
 an included pyOCD debugging plugin.
 
-To view peripheral register values either the built-in Eclipse Embedded CDT register view can be used, or
-the Embedded System Register Viewer plugin can be installed. The latter can be installed from inside
-Eclipse adding `http://embsysregview.sourceforge.net/update` as a software update server URL
-under the "Help -> Install New Software..." menu item.
+To view peripheral register values, the built-in peripheral views provided by cortex-debug and Eclipse Embedded CDT can be used. However, see the note below about accessing device memory from gdb.
+
+
+Accessing device memory
+-----------------------
+
+For several reasons, neither pyOCD's built-in target types nor those defined in Open-CMSIS-Pack Device Family Packs by silicon vendors typically include device (peripheral) regions in the memory map. And, by default, gdb restricts access to the memory map supplied it to. This results in gdb returning errors for attemtped accesses to device memory.
+
+The standard solution for this is to issue the `set mem inaccessible-by-default no` command to gdb, so it ignores the supplied memory map and allows all accesses to be sent to pyOCD, and on to the target itself. Then the target itself will return a fault for truly invalid accesses. (Note that some devices, such as the Nordic Semiconductor nRF series, do not fault invalid memory transfers and instead ignore writes and return 0.)
+
+If device memory regions must be defined for some reason, they can be added with a [user script]({% link _docs/user_scripts.md %}).
